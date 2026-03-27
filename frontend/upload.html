@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carga masiva — HubSpot Dedup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --ink:#0a0a0a;--ink2:#3a3a3a;--ink3:#888;
+    --paper:#f5f3ef;--surf:#fff;--border:#d4d0c8;
+    --accent:#c84b2f;--blue:#1a1a2e;
+    --green:#166534;--green-bg:#f0fdf4;--green-b:#86efac;
+    --red:#991b1b;--red-bg:#fff1f2;--red-b:#fca5a5;
+    --amber:#92400e;--amber-bg:#fffbeb;--amber-b:#fde68a;
+    --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
+  }
+  html,body{height:100%;font-family:var(--sans);color:var(--ink);background:var(--paper);font-size:13px}
+  .shell{display:flex;flex-direction:column;min-height:100vh}
+
+  header{background:var(--blue);color:#fff;padding:0 28px;height:56px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-bottom:3px solid var(--accent)}
+  .logo{font-family:var(--mono);font-size:15px;font-weight:600;display:flex;align-items:center;gap:10px}
+  .logo-dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+  .nav{display:flex;gap:4px}
+  .nav a{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.5);padding:6px 12px;border-radius:2px;text-decoration:none;letter-spacing:.5px;transition:background .15s,color .15s}
+  .nav a:hover,.nav a.active{background:rgba(255,255,255,.1);color:#fff}
+  .btn-logout{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.4);background:none;border:1px solid rgba(255,255,255,.15);border-radius:2px;padding:5px 10px;cursor:pointer;transition:border-color .15s,color .15s}
+  .btn-logout:hover{color:#fff;border-color:rgba(255,255,255,.4)}
+
+  .main{flex:1;padding:28px;max-width:960px;margin:0 auto;width:100%}
+
+  /* Steps indicator */
+  .steps{display:flex;gap:0;margin-bottom:32px;background:var(--surf);border:1px solid var(--border);border-radius:2px;overflow:hidden}
+  .step{flex:1;padding:10px 16px;font-family:var(--mono);font-size:11px;letter-spacing:.5px;color:var(--ink3);border-right:1px solid var(--border);display:flex;align-items:center;gap:8px;transition:background .2s}
+  .step:last-child{border-right:none}
+  .step.active{background:var(--blue);color:#fff}
+  .step.done{background:var(--green-bg);color:var(--green)}
+  .step-num{width:20px;height:20px;border-radius:50%;border:1.5px solid currentColor;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0}
+
+  /* Panels */
+  .panel{display:none}
+  .panel.active{display:block}
+
+  .card{background:var(--surf);border:1px solid var(--border);border-radius:2px;padding:24px;margin-bottom:20px}
+  .card-title{font-family:var(--mono);font-size:13px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+  .card-title::before{content:'';width:3px;height:16px;background:var(--accent);border-radius:2px;flex-shrink:0}
+
+  /* Drop zone */
+  .dropzone{border:2px dashed var(--border);border-radius:2px;padding:48px 24px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s}
+  .dropzone:hover,.dropzone.drag{border-color:var(--blue);background:#f0f4ff}
+  .dropzone-icon{font-size:32px;margin-bottom:12px;opacity:.3}
+  .dropzone-title{font-family:var(--mono);font-size:13px;margin-bottom:6px}
+  .dropzone-sub{font-size:12px;color:var(--ink3)}
+
+  /* Mapping table */
+  .map-table{width:100%;border-collapse:collapse}
+  .map-table th{font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--ink3);padding:8px 12px;text-align:left;background:var(--paper);border-bottom:1px solid var(--border)}
+  .map-table td{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+  .map-table tr:last-child td{border-bottom:none}
+  .map-table select{width:100%;font-family:var(--mono);font-size:12px;padding:6px 8px;border:1.5px solid var(--border);border-radius:2px;background:var(--paper);color:var(--ink);outline:none}
+  .map-table select:focus{border-color:var(--blue)}
+  .preview-val{font-family:var(--mono);font-size:11px;color:var(--ink3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .required-badge{font-family:var(--mono);font-size:9px;padding:2px 5px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-radius:2px}
+
+  /* Results table */
+  .results-table{width:100%;border-collapse:collapse;font-size:12px}
+  .results-table th{font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--ink3);padding:8px 10px;text-align:left;background:var(--paper);border-bottom:1px solid var(--border);position:sticky;top:0}
+  .results-table td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+  .results-table tr.clean{background:var(--green-bg)}
+  .results-table tr.duplicate{background:var(--amber-bg)}
+  .results-table tr.error{background:var(--red-bg)}
+  .results-table tr.pushed{background:#eff6ff}
+  .results-wrap{max-height:460px;overflow-y:auto;border:1px solid var(--border)}
+
+  /* Status badge */
+  .badge{display:inline-block;font-family:var(--mono);font-size:9px;padding:2px 7px;border-radius:2px;letter-spacing:.5px;text-transform:uppercase;border:1px solid}
+  .badge-clean    {background:var(--green-bg);color:var(--green);border-color:var(--green-b)}
+  .badge-duplicate{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-b)}
+  .badge-error    {background:var(--red-bg);color:var(--red);border-color:var(--red-b)}
+  .badge-pushed   {background:#eff6ff;color:#1e40af;border-color:#bfdbfe}
+  .badge-pending  {background:var(--paper);color:var(--ink3);border-color:var(--border)}
+
+  /* Stats row */
+  .stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+  .stat{background:var(--surf);border:1px solid var(--border);border-radius:2px;padding:14px 20px;flex:1;min-width:120px}
+  .stat-val{font-family:var(--mono);font-size:22px;font-weight:600;margin-bottom:4px}
+  .stat-lbl{font-size:11px;color:var(--ink3)}
+  .stat.green .stat-val{color:var(--green)}
+  .stat.amber .stat-val{color:var(--amber)}
+  .stat.red   .stat-val{color:var(--red)}
+
+  /* Buttons */
+  .btn{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:1px;text-transform:uppercase;padding:9px 18px;border-radius:2px;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:background .15s,opacity .15s}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn-primary{background:var(--blue);color:#fff}
+  .btn-primary:hover:not(:disabled){background:#0f0f1e}
+  .btn-success{background:#166534;color:#fff}
+  .btn-success:hover:not(:disabled){background:#14532d}
+  .btn-ghost{background:transparent;color:var(--ink2);border:1px solid var(--border)}
+  .btn-ghost:hover:not(:disabled){background:var(--paper)}
+  .btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+
+  /* Progress */
+  .progress-wrap{height:4px;background:var(--border);border-radius:2px;margin:12px 0;overflow:hidden}
+  .progress-bar{height:100%;background:var(--accent);border-radius:2px;transition:width .3s}
+  .progress-bar.indeterminate{animation:indeterminate 1.4s ease infinite;transform-origin:left}
+  @keyframes indeterminate{0%{transform:scaleX(0) translateX(0)}50%{transform:scaleX(.5) translateX(100%)}100%{transform:scaleX(0) translateX(300%)}}
+
+  /* Toast */
+  .toast{position:fixed;bottom:24px;right:24px;font-family:var(--mono);font-size:12px;padding:12px 18px;border-radius:2px;max-width:340px;transform:translateY(60px);opacity:0;transition:transform .3s,opacity .3s;z-index:100}
+  .toast.show{transform:translateY(0);opacity:1}
+  .toast.ok{background:var(--green-bg);border:1px solid var(--green-b);color:var(--green)}
+  .toast.error{background:var(--red-bg);border:1px solid var(--red-b);color:var(--red)}
+
+  /* Checkbox forzar duplicado */
+  input[type=checkbox]{width:15px;height:15px;accent-color:var(--accent);cursor:pointer}
+
+  .chip{font-family:var(--mono);font-size:10px;padding:2px 6px;background:var(--paper);border:1px solid var(--border);border-radius:2px;color:var(--ink3)}
+</style>
+</head>
+<body>
+<div class="shell">
+<header>
+  <div class="logo"><div class="logo-dot"></div>HubSpot Dedup</div>
+  <nav class="nav">
+    <a href="/dashboard.html">Duplicados</a>
+    <a href="/upload.html" class="active">Carga masiva</a>
+  </nav>
+  <button class="btn-logout" onclick="logout()">Salir</button>
+</header>
+
+<div class="main">
+  <!-- Steps -->
+  <div class="steps">
+    <div class="step active" id="s1"><div class="step-num">1</div>Subir archivo</div>
+    <div class="step" id="s2"><div class="step-num">2</div>Mapear columnas</div>
+    <div class="step" id="s3"><div class="step-num">3</div>Validar duplicados</div>
+    <div class="step" id="s4"><div class="step-num">4</div>Confirmar y enviar</div>
+  </div>
+
+  <!-- PANEL 1: Upload -->
+  <div class="panel active" id="panel1">
+    <div class="card">
+      <div class="card-title">Selecciona el archivo</div>
+      <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()"
+           ondragover="event.preventDefault();this.classList.add('drag')"
+           ondragleave="this.classList.remove('drag')"
+           ondrop="handleDrop(event)">
+        <div class="dropzone-icon">⬆</div>
+        <div class="dropzone-title">Arrastra tu archivo aquí o haz clic para seleccionar</div>
+        <div class="dropzone-sub">Excel (.xlsx) o CSV · Máximo 10 MB</div>
+      </div>
+      <input type="file" id="file-input" accept=".xlsx,.csv,.xls" style="display:none" onchange="handleFile(this.files[0])">
+      <div class="progress-wrap" id="p1-progress" style="display:none"><div class="progress-bar indeterminate"></div></div>
+      <div id="p1-msg" style="margin-top:12px;font-family:var(--mono);font-size:12px;color:var(--ink3)"></div>
+    </div>
+  </div>
+
+  <!-- PANEL 2: Mapeo -->
+  <div class="panel" id="panel2">
+    <div class="card">
+      <div class="card-title">Mapea las columnas del archivo a propiedades de HubSpot</div>
+      <p style="font-size:12px;color:var(--ink3);margin-bottom:16px">
+        <span class="required-badge">Requerido</span>&nbsp; Nombre y al menos un teléfono son obligatorios.
+        Las columnas sin mapear se ignoran.
+      </p>
+      <table class="map-table" id="map-table">
+        <thead><tr>
+          <th>Columna en tu archivo</th>
+          <th>Propiedad HubSpot</th>
+          <th>Ejemplo de dato</th>
+        </tr></thead>
+        <tbody id="map-tbody"></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title">Nombre del lote</div>
+      <input type="text" id="batch-name" placeholder="Ej: Leads enero 2025 — Campus Monterrey"
+        style="width:100%;font-family:var(--mono);font-size:13px;padding:10px 12px;border:1.5px solid var(--border);border-radius:2px;background:var(--paper);color:var(--ink);outline:none">
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="goStep(1)">← Atrás</button>
+      <button class="btn btn-primary" onclick="submitBatch()">Guardar y validar →</button>
+    </div>
+  </div>
+
+  <!-- PANEL 3: Validación -->
+  <div class="panel" id="panel3">
+    <div id="p3-validating" style="text-align:center;padding:48px 0">
+      <div class="progress-wrap" style="width:280px;margin:0 auto 16px"><div class="progress-bar indeterminate"></div></div>
+      <div style="font-family:var(--mono);font-size:13px;color:var(--ink2)">Validando contra HubSpot...</div>
+      <div style="font-size:12px;color:var(--ink3);margin-top:8px">Esto puede tomar 1-3 minutos dependiendo del tamaño del archivo</div>
+    </div>
+    <div id="p3-results" style="display:none">
+      <div class="stats" id="stats-row"></div>
+      <div class="card">
+        <div class="card-title">Resultados de validación</div>
+        <div class="results-wrap"><table class="results-table" id="results-table">
+          <thead><tr>
+            <th>#</th><th>Nombre</th><th>Teléfono</th><th>Email</th>
+            <th>Estado</th><th>Duplicado de</th>
+          </tr></thead>
+          <tbody id="results-tbody"></tbody>
+        </table></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="goStep(2)">← Atrás</button>
+        <button class="btn btn-primary" onclick="goStep(4)">Revisar y confirmar →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL 4: Confirmación y push -->
+  <div class="panel" id="panel4">
+    <div class="card">
+      <div class="card-title">Confirmar envío a HubSpot</div>
+      <div id="confirm-summary" style="font-size:13px;color:var(--ink2);line-height:1.7;margin-bottom:20px"></div>
+
+      <div id="dup-section" style="display:none">
+        <div style="font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--ink3);margin-bottom:10px">
+          Registros duplicados — marca los que quieres forzar igualmente
+        </div>
+        <div class="results-wrap" style="max-height:280px">
+          <table class="results-table" id="dup-table">
+            <thead><tr>
+              <th>Forzar</th><th>#</th><th>Nombre</th><th>Teléfono</th>
+              <th>Duplicado de (HS ID)</th><th>Campo</th>
+            </tr></thead>
+            <tbody id="dup-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="goStep(3)">← Atrás</button>
+      <button class="btn btn-success" id="btn-push" onclick="executePush()">
+        Enviar a HubSpot →
+      </button>
+    </div>
+    <div class="progress-wrap" id="p4-progress" style="display:none"><div class="progress-bar indeterminate"></div></div>
+    <div id="p4-result" style="margin-top:16px;font-family:var(--mono);font-size:13px"></div>
+  </div>
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Auth ──────────────────────────────────────────────────────────────────────
+let TOKEN = null;
+function init() {
+  TOKEN = localStorage.getItem("hs_dedup_token");
+  if (!TOKEN) location.href = "/login.html";
+  try {
+    const p = JSON.parse(atob(TOKEN.split(".")[1]));
+    if (p.exp * 1000 < Date.now()) { localStorage.removeItem("hs_dedup_token"); location.href="/login.html"; }
+  } catch { location.href="/login.html"; }
+}
+function logout() { localStorage.removeItem("hs_dedup_token"); location.href="/login.html"; }
+
+async function api(method, path, body, isFormData=false) {
+  const opts = {
+    method,
+    headers: { Authorization: `Bearer ${TOKEN}` },
+  };
+  if (body && !isFormData) { opts.headers["Content-Type"]="application/json"; opts.body=JSON.stringify(body); }
+  else if (body) opts.body = body;
+  const res = await fetch(path, opts);
+  if (res.status===401) { logout(); return; }
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Error del servidor");
+  return data;
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let currentFile = null;
+let parsedData  = null;
+let hsPropList  = [];
+let batchId     = null;
+let batchData   = null;
+let pollTimer   = null;
+
+// ── Steps ─────────────────────────────────────────────────────────────────────
+function goStep(n) {
+  [1,2,3,4].forEach(i => {
+    document.getElementById(`panel${i}`).classList.toggle("active", i===n);
+    const s = document.getElementById(`s${i}`);
+    s.classList.remove("active","done");
+    if (i===n) s.classList.add("active");
+    else if (i<n) s.classList.add("done");
+  });
+}
+
+// ── Step 1: File ──────────────────────────────────────────────────────────────
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById("dropzone").classList.remove("drag");
+  const file = e.dataTransfer.files[0];
+  if (file) handleFile(file);
+}
+
+async function handleFile(file) {
+  if (!file) return;
+  currentFile = file;
+  document.getElementById("p1-progress").style.display = "block";
+  document.getElementById("p1-msg").textContent = "Analizando archivo...";
+
+  try {
+    const fd = new FormData();
+    fd.append("file", file);
+    parsedData = await api("POST", "/api/upload/parse", fd, true);
+    hsPropList = await api("GET", "/api/upload/hs-properties");
+
+    document.getElementById("p1-progress").style.display = "none";
+    document.getElementById("p1-msg").textContent =
+      `✓ ${file.name} · ${parsedData.total_rows.toLocaleString()} filas · ${parsedData.columns.length} columnas`;
+
+    buildMappingTable();
+    document.getElementById("batch-name").value = file.name.replace(/\.[^.]+$/, "");
+    goStep(2);
+  } catch(e) {
+    document.getElementById("p1-progress").style.display = "none";
+    document.getElementById("p1-msg").textContent = "Error: " + e.message;
+    toast(e.message, "error");
+  }
+}
+
+// ── Step 2: Mapping ───────────────────────────────────────────────────────────
+function buildMappingTable() {
+  const tbody = document.getElementById("map-tbody");
+  tbody.innerHTML = "";
+
+  // Opciones HS
+  const hsOpts = `<option value="">— Ignorar columna —</option>` +
+    hsPropList.map(p => `<option value="${p.value}">${p.label}</option>`).join("");
+
+  parsedData.columns.forEach(col => {
+    const preview = parsedData.preview.map(r => r[col]).filter(Boolean)[0] || "—";
+    const autoVal = parsedData.autoMap[col] || "";
+    const isReq   = ["firstname","phone"].includes(autoVal);
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td style="font-family:var(--mono);font-size:12px">
+        ${col} ${isReq ? '<span class="required-badge">requerido</span>' : ""}
+      </td>
+      <td>
+        <select data-col="${col}" onchange="checkRequired()">
+          ${hsOpts}
+        </select>
+      </td>
+      <td><span class="preview-val">${preview}</span></td>
+    `;
+    tbody.appendChild(tr);
+
+    // Setear auto-mapeo
+    const sel = tr.querySelector("select");
+    if (autoVal) sel.value = autoVal;
+  });
+}
+
+function checkRequired() {} // podría validar en tiempo real
+
+function getMappings() {
+  const sels = document.querySelectorAll("#map-tbody select");
+  const map = {};
+  sels.forEach(s => { if (s.value) map[s.dataset.col] = s.value; });
+  return map;
+}
+
+// ── Step 3: Submit & Poll ─────────────────────────────────────────────────────
+async function submitBatch() {
+  const mappings = getMappings();
+
+  const hasName  = Object.values(mappings).some(v => ["firstname","lastname"].includes(v));
+  const hasPhone = Object.values(mappings).some(v => ["phone","mobilephone","hs_whatsapp_phone"].includes(v));
+
+  if (!hasName)  return toast("Mapea al menos una columna al nombre del contacto.", "error");
+  if (!hasPhone) return toast("Mapea al menos una columna a un campo de teléfono.", "error");
+
+  goStep(3);
+  document.getElementById("p3-validating").style.display = "block";
+  document.getElementById("p3-results").style.display = "none";
+
+  try {
+    const fd = new FormData();
+    fd.append("file", currentFile);
+    fd.append("mappings", JSON.stringify(mappings));
+    fd.append("batch_name", document.getElementById("batch-name").value);
+
+    const { batchId: bid } = await api("POST", "/api/upload/submit", fd, true);
+    batchId = bid;
+
+    // Poll hasta que status sea 'ready'
+    pollBatchStatus();
+  } catch(e) {
+    toast(e.message, "error");
+    goStep(2);
+  }
+}
+
+function pollBatchStatus() {
+  clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    try {
+      const data = await api("GET", `/api/upload/batch/${batchId}`);
+      if (data.batch.status === "ready" || data.batch.status === "pushed") {
+        clearInterval(pollTimer);
+        batchData = data;
+        renderResults(data);
+      }
+    } catch(e) {
+      clearInterval(pollTimer);
+      toast("Error al obtener estado: " + e.message, "error");
+    }
+  }, 3000);
+}
+
+function renderResults(data) {
+  document.getElementById("p3-validating").style.display = "none";
+  document.getElementById("p3-results").style.display = "block";
+
+  const b = data.batch;
+  const errRows = data.rows.filter(r => r.status === "error").length;
+
+  document.getElementById("stats-row").innerHTML = `
+    <div class="stat"><div class="stat-val">${b.total_rows}</div><div class="stat-lbl">Total filas</div></div>
+    <div class="stat green"><div class="stat-val">${b.clean_rows}</div><div class="stat-lbl">Limpios</div></div>
+    <div class="stat amber"><div class="stat-val">${b.duplicate_rows}</div><div class="stat-lbl">Duplicados</div></div>
+    <div class="stat red"><div class="stat-val">${errRows}</div><div class="stat-lbl">Con error</div></div>
+  `;
+
+  const tbody = document.getElementById("results-tbody");
+  tbody.innerHTML = "";
+  data.rows.forEach(r => {
+    const tr = document.createElement("tr");
+    tr.className = r.status;
+    tr.innerHTML = `
+      <td style="font-family:var(--mono);font-size:11px">${r.row_index}</td>
+      <td>${r.nombre || "—"}</td>
+      <td style="font-family:var(--mono);font-size:11px">${r.telefono}</td>
+      <td>${r.email || "—"}</td>
+      <td><span class="badge badge-${r.status}">${r.status}</span></td>
+      <td style="font-family:var(--mono);font-size:11px">
+        ${r.duplicate_of_hs ? `<span class="chip">${r.duplicate_of_hs}</span> en ${r.duplicate_field}` : "—"}
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// ── Step 4: Confirm & Push ────────────────────────────────────────────────────
+function goStep4() { goStep(4); buildConfirmPanel(); }
+
+function buildConfirmPanel() {
+  if (!batchData) return;
+  const b  = batchData.batch;
+  const dups = batchData.rows.filter(r => r.status === "duplicate");
+
+  document.getElementById("confirm-summary").innerHTML = `
+    Se enviarán a HubSpot <strong>${b.clean_rows} contactos limpios</strong>.<br>
+    Hay <strong>${b.duplicate_rows} duplicados</strong> que no se enviarán, salvo que los marques abajo.
+  `;
+
+  const dupSection = document.getElementById("dup-section");
+  const dupTbody   = document.getElementById("dup-tbody");
+  dupTbody.innerHTML = "";
+
+  if (dups.length > 0) {
+    dupSection.style.display = "block";
+    dups.forEach(r => {
+      const tr = document.createElement("tr");
+      tr.className = "duplicate";
+      tr.innerHTML = `
+        <td style="text-align:center"><input type="checkbox" data-row-id="${r.id}"></td>
+        <td style="font-family:var(--mono);font-size:11px">${r.row_index}</td>
+        <td>${r.nombre || "—"}</td>
+        <td style="font-family:var(--mono);font-size:11px">${r.telefono}</td>
+        <td style="font-family:var(--mono);font-size:11px"><span class="chip">${r.duplicate_of_hs}</span></td>
+        <td style="font-family:var(--mono);font-size:11px">${r.duplicate_field}</td>
+      `;
+      dupTbody.appendChild(tr);
+    });
+  } else {
+    dupSection.style.display = "none";
+  }
+}
+
+async function executePush() {
+  const forceIds = [...document.querySelectorAll("#dup-tbody input[type=checkbox]:checked")]
+    .map(cb => parseInt(cb.dataset.rowId));
+
+  document.getElementById("btn-push").disabled = true;
+  document.getElementById("p4-progress").style.display = "block";
+  document.getElementById("p4-result").textContent = "";
+
+  try {
+    const data = await api("POST", `/api/upload/batch/${batchId}/push`, { force_row_ids: forceIds });
+    document.getElementById("p4-progress").style.display = "none";
+    document.getElementById("p4-result").innerHTML =
+      `<span style="color:var(--green)">✓ ${data.pushed} contactos enviados a HubSpot.</span>` +
+      (data.failed ? ` <span style="color:var(--red)">${data.failed} con error.</span>` : "");
+    toast(`Push completado: ${data.pushed} enviados.`, "ok");
+  } catch(e) {
+    document.getElementById("p4-progress").style.display = "none";
+    toast(e.message, "error");
+  } finally {
+    document.getElementById("btn-push").disabled = false;
+  }
+}
+
+// Sobreescribir goStep para buildConfirmPanel en step 4
+const _goStep = goStep;
+window.goStep = function(n) {
+  _goStep(n);
+  if (n===4) buildConfirmPanel();
+};
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg, type) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.className = `toast ${type} show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 4000);
+}
+
+init();
+</script>
+</body>
+</html>

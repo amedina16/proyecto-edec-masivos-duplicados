@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Acceso — HubSpot Dedup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink:     #0a0a0a;
+    --ink2:    #3a3a3a;
+    --ink3:    #888;
+    --paper:   #f5f3ef;
+    --surface: #ffffff;
+    --border:  #d4d0c8;
+    --accent:  #c84b2f;
+    --accent2: #1a1a2e;
+    --mono:    'IBM Plex Mono', monospace;
+    --sans:    'IBM Plex Sans', sans-serif;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.35;
+    pointer-events: none;
+  }
+
+  .page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    position: relative;
+  }
+
+  /* Corner marks */
+  .corner { position: fixed; width: 20px; height: 20px; opacity: 0.3; }
+  .corner::before, .corner::after { content: ''; position: absolute; background: var(--ink); }
+  .corner::before { width: 100%; height: 1.5px; }
+  .corner::after  { width: 1.5px; height: 100%; }
+  .tl { top: 24px; left: 24px; }
+  .tr { top: 24px; right: 24px; transform: scaleX(-1); }
+  .bl { bottom: 24px; left: 24px; transform: scaleY(-1); }
+  .br { bottom: 24px; right: 24px; transform: scale(-1); }
+
+  .card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 2px;
+    padding: 48px 40px;
+    width: 100%;
+    max-width: 400px;
+    position: relative;
+    animation: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Accent bar top */
+  .card::before {
+    content: '';
+    position: absolute;
+    top: -1.5px; left: 32px; right: 32px;
+    height: 3px;
+    background: var(--accent);
+    border-radius: 0 0 2px 2px;
+  }
+
+  .label-system {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--ink3);
+    text-transform: uppercase;
+    margin-bottom: 32px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .label-system::before {
+    content: '';
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+  }
+
+  h1 {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+    margin-bottom: 8px;
+    line-height: 1.2;
+  }
+
+  .subtitle {
+    font-size: 13px;
+    color: var(--ink3);
+    margin-bottom: 36px;
+    line-height: 1.6;
+    font-weight: 300;
+  }
+
+  .field-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--ink2);
+    display: block;
+    margin-bottom: 8px;
+  }
+
+  input[type="email"] {
+    width: 100%;
+    padding: 11px 14px;
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--ink);
+    background: var(--paper);
+    border: 1.5px solid var(--border);
+    border-radius: 2px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  input[type="email"]:focus {
+    border-color: var(--accent2);
+    background: var(--surface);
+  }
+
+  .btn {
+    margin-top: 16px;
+    width: 100%;
+    padding: 12px;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #fff;
+    background: var(--accent2);
+    border: none;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .btn:hover  { background: #0f0f1e; }
+  .btn:active { transform: scale(0.99); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .msg {
+    margin-top: 16px;
+    padding: 12px 14px;
+    font-family: var(--mono);
+    font-size: 12px;
+    border-radius: 2px;
+    display: none;
+    line-height: 1.5;
+  }
+
+  .msg.ok    { background: #f0fdf4; border: 1px solid #86efac; color: #166534; display: block; }
+  .msg.error { background: #fff1f2; border: 1px solid #fca5a5; color: #991b1b; display: block; }
+
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 32px 0 20px;
+  }
+
+  .footer-note {
+    font-size: 11px;
+    color: var(--ink3);
+    font-family: var(--mono);
+    line-height: 1.6;
+  }
+
+  /* Spinner */
+  .spinner {
+    width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="corner tl"></div>
+<div class="corner tr"></div>
+<div class="corner bl"></div>
+<div class="corner br"></div>
+
+<div class="page">
+  <div class="card">
+    <div class="label-system">Sistema de operaciones</div>
+    <h1>HubSpot<br>Dedup</h1>
+    <p class="subtitle">Ingresa tu correo para recibir un enlace de acceso seguro. Sin contraseñas.</p>
+
+    <label class="field-label" for="email">Correo electrónico</label>
+    <input type="email" id="email" placeholder="usuario@empresa.com" autocomplete="email">
+
+    <button class="btn" id="btn" onclick="requestLink()">
+      <span id="btn-text">Enviar enlace</span>
+      <div class="spinner" id="spinner"></div>
+    </button>
+
+    <div class="msg" id="msg"></div>
+
+    <hr class="divider">
+    <p class="footer-note">El enlace expira en 15 minutos.<br>Solo emails autorizados pueden acceder.</p>
+  </div>
+</div>
+
+<script>
+  // Mostrar error si llegó desde verify expirado
+  const params = new URLSearchParams(location.search);
+  if (params.get("error") === "expired") {
+    showMsg("El enlace expiró o ya fue usado. Solicita uno nuevo.", "error");
+  }
+
+  async function requestLink() {
+    const email = document.getElementById("email").value.trim();
+    if (!email) return showMsg("Ingresa tu correo.", "error");
+
+    setLoading(true);
+    clearMsg();
+
+    try {
+      const res  = await fetch("/api/auth/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || "Error al enviar");
+      showMsg("✓  Enlace enviado. Revisa tu bandeja de entrada.", "ok");
+      document.getElementById("btn").disabled = true;
+    } catch (e) {
+      showMsg(e.message, "error");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  document.getElementById("email").addEventListener("keydown", e => {
+    if (e.key === "Enter") requestLink();
+  });
+
+  function setLoading(on) {
+    document.getElementById("spinner").style.display = on ? "block" : "none";
+    document.getElementById("btn-text").textContent = on ? "Enviando..." : "Enviar enlace";
+    document.getElementById("btn").disabled = on;
+  }
+
+  function showMsg(text, type) {
+    const el = document.getElementById("msg");
+    el.textContent = text;
+    el.className = `msg ${type}`;
+  }
+
+  function clearMsg() {
+    const el = document.getElementById("msg");
+    el.className = "msg";
+  }
+</script>
+</body>
+</html>
