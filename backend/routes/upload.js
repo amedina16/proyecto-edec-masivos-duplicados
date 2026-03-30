@@ -223,37 +223,49 @@ async function validateBatch(batchId) {
   const hsToken = process.env.HUBSPOT_TOKEN;
   const headers = { Authorization: `Bearer ${hsToken}` };
 
-  // Obtener todas las filas con teléfono normalizado
   const rows = await query(
-    "SELECT id, telefono_norm FROM upload_rows WHERE batch_id=? AND telefono_norm IS NOT NULL",
+    "SELECT id, telefono, telefono_norm FROM upload_rows WHERE batch_id=? AND telefono_norm IS NOT NULL",
     [batchId]
   );
 
   let clean = 0, dupes = 0;
 
   for (const row of rows) {
-    // Buscar en HubSpot por los 3 campos de teléfono
+    // Generar todas las variantes posibles del número para buscar
+    const norm = row.telefono_norm; // +528136309430
+    const variants = new Set([
+      norm,                          // +528136309430
+      norm.replace("+", ""),         // 528136309430
+      norm.replace("+52", ""),       // 8136309430  (10 dígitos MX)
+      norm.replace("+521", ""),      // busca sin 521
+      norm.replace("+52", "521"),      // busca con 521
+      row.telefono,                  // número original del CSV
+    ].filter(Boolean));
+
     let foundId = null, foundField = null;
 
+    // Buscar cada variante en cada campo de teléfono
+    outer:
     for (const prop of HS_PHONE_PROPS) {
-      try {
-        const { data } = await axios.post(
-          `${HS_BASE}/crm/v3/objects/contacts/search`,
-          {
-            filterGroups: [{ filters: [{ propertyName: prop, operator: "CONTAINS_TOKEN", value: row.telefono_norm }] }],
-            properties: ["hs_object_id"],
-            limit: 1,
-          },
-          { headers }
-        );
-        if (data.total > 0) {
-          foundId    = data.results[0].id;
-          foundField = prop;
-          break;
-        }
-      } catch { /* continúa con el siguiente campo */ }
-
-      await new Promise(r => setTimeout(r, 80)); // rate limit
+      for (const variant of variants) {
+        try {
+          const { data } = await axios.post(
+            `${HS_BASE}/crm/v3/objects/contacts/search`,
+            {
+              filterGroups: [{ filters: [{ propertyName: prop, operator: "EQ", value: variant }] }],
+              properties: ["hs_object_id"],
+              limit: 1,
+            },
+            { headers }
+          );
+          if (data.total > 0) {
+            foundId    = data.results[0].id;
+            foundField = prop;
+            break outer;
+          }
+        } catch { /* continúa */ }
+        await new Promise(r => setTimeout(r, 60));
+      }
     }
 
     if (foundId) {
@@ -268,7 +280,6 @@ async function validateBatch(batchId) {
     }
   }
 
-  // Filas sin teléfono válido → error
   await query(
     "UPDATE upload_rows SET status='error', error_msg='Teléfono inválido o vacío' WHERE batch_id=? AND telefono_norm IS NULL",
     [batchId]
@@ -331,9 +342,12 @@ router.post("/batch/:id/push", async (req, res) => {
   let pushed = 0, failed = 0;
 
   for (const row of rows) {
+    // Usar siempre el número normalizado (+52XXXXXXXXXX)
+    const phoneNorm = row.telefono_norm || row.telefono;
+
     const props = {
       firstname: row.nombre,
-      phone:     row.telefono,
+      phone:     phoneNorm,
       email:     row.email     || undefined,
       origen__c: row.origen    || undefined,
       campus__c: row.campus    || undefined,
