@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — HubSpot Dedup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --ink:#0a0a0a;--ink2:#3a3a3a;--ink3:#888;
+    --paper:#f5f3ef;--surf:#fff;--border:#d4d0c8;
+    --accent:#c84b2f;--blue:#1a1a2e;
+    --green:#166534;--green-bg:#f0fdf4;--green-b:#86efac;
+    --red:#991b1b;--red-bg:#fff1f2;--red-b:#fca5a5;
+    --amber:#92400e;--amber-bg:#fffbeb;
+    --purple:#4c1d95;--purple-bg:#f5f3ff;
+    --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
+  }
+  html,body{height:100%;font-family:var(--sans);color:var(--ink);background:var(--paper);font-size:13px}
+  .shell{display:flex;flex-direction:column;min-height:100vh}
+
+  header{background:var(--blue);color:#fff;padding:0 28px;height:56px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-bottom:3px solid var(--accent)}
+  .logo{font-family:var(--mono);font-size:15px;font-weight:600;display:flex;align-items:center;gap:10px}
+  .logo-dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+  .nav{display:flex;gap:4px}
+  .nav a{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.5);padding:6px 12px;border-radius:2px;text-decoration:none;letter-spacing:.5px;transition:background .15s,color .15s}
+  .nav a:hover,.nav a.active{background:rgba(255,255,255,.1);color:#fff}
+  .btn-logout{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.4);background:none;border:1px solid rgba(255,255,255,.15);border-radius:2px;padding:5px 10px;cursor:pointer}
+  .btn-logout:hover{color:#fff;border-color:rgba(255,255,255,.4)}
+
+  .main{flex:1;padding:28px;max-width:1100px;margin:0 auto;width:100%}
+
+  /* Stats */
+  .stats{display:flex;gap:14px;margin-bottom:28px}
+  .stat{background:var(--surf);border:1px solid var(--border);border-radius:2px;padding:16px 20px;flex:1}
+  .stat-val{font-family:var(--mono);font-size:28px;font-weight:600;margin-bottom:4px}
+  .stat-lbl{font-size:11px;color:var(--ink3)}
+
+  /* Section */
+  .section{background:var(--surf);border:1px solid var(--border);border-radius:2px;margin-bottom:24px}
+  .section-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
+  .section-title{font-family:var(--mono);font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px}
+  .section-title::before{content:'';width:3px;height:16px;background:var(--accent);border-radius:2px;flex-shrink:0}
+  .section-body{padding:0}
+
+  /* Table */
+  table{width:100%;border-collapse:collapse}
+  th{font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--ink3);padding:10px 16px;text-align:left;background:var(--paper);border-bottom:1px solid var(--border)}
+  td{padding:10px 16px;border-bottom:1px solid var(--border);vertical-align:middle;font-size:12px}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:#fafaf8}
+
+  /* Role badge */
+  .role{display:inline-block;font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:2px;letter-spacing:.5px;text-transform:uppercase;border:1px solid}
+  .role-admin {background:var(--purple-bg);color:var(--purple);border-color:#c4b5fd}
+  .role-dedup {background:#eff6ff;color:#1e40af;border-color:#bfdbfe}
+  .role-upload{background:var(--green-bg);color:var(--green);border-color:var(--green-b)}
+
+  .status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px}
+  .dot-active{background:#16a34a}
+  .dot-inactive{background:#d1d5db}
+
+  /* Buttons */
+  .btn{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:1px;text-transform:uppercase;padding:8px 16px;border-radius:2px;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background .15s}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn-primary{background:var(--blue);color:#fff}
+  .btn-primary:hover:not(:disabled){background:#0f0f1e}
+  .btn-danger{background:var(--accent);color:#fff}
+  .btn-danger:hover:not(:disabled){background:#a83a20}
+  .btn-ghost{background:transparent;color:var(--ink2);border:1px solid var(--border)}
+  .btn-ghost:hover:not(:disabled){background:var(--paper)}
+  .btn-sm{padding:5px 10px;font-size:10px}
+
+  /* Modal */
+  .overlay{position:fixed;inset:0;background:rgba(10,10,10,.55);display:none;align-items:center;justify-content:center;z-index:200;backdrop-filter:blur(2px)}
+  .overlay.open{display:flex}
+  .modal{background:var(--surf);border:1.5px solid var(--border);border-radius:2px;padding:32px 28px;width:100%;max-width:440px;animation:rise .25s ease both}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  .modal-title{font-family:var(--mono);font-size:15px;font-weight:600;margin-bottom:20px}
+
+  label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--ink2);margin-bottom:6px;margin-top:14px}
+  label:first-of-type{margin-top:0}
+  input[type=text],input[type=email],select{width:100%;font-family:var(--mono);font-size:13px;padding:9px 12px;border:1.5px solid var(--border);border-radius:2px;background:var(--paper);color:var(--ink);outline:none;transition:border-color .15s}
+  input:focus,select:focus{border-color:var(--blue)}
+
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px}
+
+  /* Log table */
+  .log-action{font-family:var(--mono);font-size:11px;background:var(--paper);padding:2px 6px;border-radius:2px;border:1px solid var(--border)}
+  .ts{font-family:var(--mono);font-size:11px;color:var(--ink3)}
+
+  /* Toast */
+  .toast{position:fixed;bottom:24px;right:24px;font-family:var(--mono);font-size:12px;padding:12px 18px;border-radius:2px;max-width:340px;transform:translateY(60px);opacity:0;transition:transform .3s,opacity .3s;z-index:300}
+  .toast.show{transform:translateY(0);opacity:1}
+  .toast.ok{background:var(--green-bg);border:1px solid var(--green-b);color:var(--green)}
+  .toast.error{background:var(--red-bg);border:1px solid var(--red-b);color:var(--red)}
+
+  .empty{padding:40px;text-align:center;color:var(--ink3);font-family:var(--mono);font-size:12px}
+</style>
+</head>
+<body>
+<div class="shell">
+<header>
+  <div class="logo"><div class="logo-dot"></div>HubSpot Dedup</div>
+  <nav class="nav">
+    <a href="/dashboard.html">Duplicados</a>
+    <a href="/upload.html">Carga masiva</a>
+    <a href="/admin.html" class="active">Admin</a>
+  </nav>
+  <button class="btn-logout" onclick="logout()">Salir</button>
+</header>
+
+<div class="main">
+
+  <!-- Stats -->
+  <div class="stats" id="stats-row">
+    <div class="stat"><div class="stat-val" id="st-users">—</div><div class="stat-lbl">Usuarios activos</div></div>
+    <div class="stat"><div class="stat-val" id="st-batches">—</div><div class="stat-lbl">Lotes de carga</div></div>
+    <div class="stat"><div class="stat-val" id="st-actions">—</div><div class="stat-lbl">Acciones (7 días)</div></div>
+  </div>
+
+  <!-- Usuarios -->
+  <div class="section">
+    <div class="section-head">
+      <div class="section-title">Usuarios</div>
+      <button class="btn btn-primary" onclick="openInviteModal()">+ Invitar usuario</button>
+    </div>
+    <div class="section-body">
+      <table>
+        <thead><tr>
+          <th>Email</th><th>Nombre</th><th>Rol</th><th>Estado</th>
+          <th>Último acceso</th><th>Invitado por</th><th>Acciones</th>
+        </tr></thead>
+        <tbody id="users-tbody"><tr><td colspan="7" class="empty">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Log de actividad -->
+  <div class="section">
+    <div class="section-head">
+      <div class="section-title">Log de actividad</div>
+      <button class="btn btn-ghost btn-sm" onclick="loadActivity()">⟳ Actualizar</button>
+    </div>
+    <div class="section-body">
+      <table>
+        <thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr></thead>
+        <tbody id="log-tbody"><tr><td colspan="4" class="empty">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- Modal Invitar -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="modal-title">Invitar usuario</div>
+    <label>Email</label>
+    <input type="email" id="inv-email" placeholder="usuario@empresa.com">
+    <label>Nombre (opcional)</label>
+    <input type="text" id="inv-name" placeholder="Nombre completo">
+    <label>Rol</label>
+    <select id="inv-role">
+      <option value="dedup">Deduplicación — duplicados y merges</option>
+      <option value="upload">Carga masiva — solo subir CSV</option>
+      <option value="admin">Administrador — acceso total</option>
+    </select>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="sendInvite()">Enviar invitación</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Editar Rol -->
+<div class="overlay" id="overlay-edit">
+  <div class="modal">
+    <div class="modal-title">Editar usuario</div>
+    <input type="hidden" id="edit-id">
+    <label>Rol</label>
+    <select id="edit-role">
+      <option value="dedup">Deduplicación</option>
+      <option value="upload">Carga masiva</option>
+      <option value="admin">Administrador</option>
+    </select>
+    <label>Estado</label>
+    <select id="edit-status">
+      <option value="active">Activo</option>
+      <option value="inactive">Inactivo</option>
+    </select>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeEditModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveEdit()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let TOKEN = null;
+let MY_EMAIL = null;
+
+function init() {
+  TOKEN = localStorage.getItem("hs_dedup_token");
+  if (!TOKEN) return location.href = "/login.html";
+  try {
+    const p = JSON.parse(atob(TOKEN.split(".")[1]));
+    if (p.exp * 1000 < Date.now()) { localStorage.removeItem("hs_dedup_token"); return location.href="/login.html"; }
+    if (p.role !== "admin") return location.href = "/dashboard.html";
+    MY_EMAIL = p.email;
+  } catch { return location.href="/login.html"; }
+
+  loadStats();
+  loadUsers();
+  loadActivity();
+}
+
+function logout() { localStorage.removeItem("hs_dedup_token"); location.href="/login.html"; }
+
+async function api(method, path, body) {
+  const opts = { method, headers: { Authorization: `Bearer ${TOKEN}` } };
+  if (body) { opts.headers["Content-Type"]="application/json"; opts.body=JSON.stringify(body); }
+  const res = await fetch(path, opts);
+  if (res.status===401) { logout(); return; }
+  if (res.status===403) { location.href="/dashboard.html"; return; }
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Error");
+  return data;
+}
+
+async function loadStats() {
+  try {
+    const d = await api("GET", "/api/admin/stats");
+    document.getElementById("st-users").textContent   = d.active_users;
+    document.getElementById("st-batches").textContent = d.total_batches;
+    document.getElementById("st-actions").textContent = d.actions_7d;
+  } catch {}
+}
+
+async function loadUsers() {
+  try {
+    const users = await api("GET", "/api/admin/users");
+    const tbody = document.getElementById("users-tbody");
+    if (!users.length) { tbody.innerHTML = `<tr><td colspan="7" class="empty">Sin usuarios</td></tr>`; return; }
+
+    tbody.innerHTML = users.map(u => `
+      <tr>
+        <td style="font-family:var(--mono);font-size:12px">${u.email}</td>
+        <td>${u.name || "—"}</td>
+        <td><span class="role role-${u.role}">${u.role}</span></td>
+        <td>
+          <span class="status-dot dot-${u.status}"></span>
+          ${u.status === "active" ? "Activo" : "Inactivo"}
+        </td>
+        <td class="ts">${u.last_login ? u.last_login.slice(0,16).replace("T"," ") : "Nunca"}</td>
+        <td class="ts">${u.invited_by || "—"}</td>
+        <td>
+          <button class="btn btn-ghost btn-sm" onclick="openEditModal(${u.id},'${u.role}','${u.status}')">Editar</button>
+          ${u.email !== MY_EMAIL ? `<button class="btn btn-danger btn-sm" style="margin-left:6px" onclick="deactivateUser(${u.id},'${u.email}')">Desactivar</button>` : ""}
+        </td>
+      </tr>
+    `).join("");
+  } catch(e) {
+    toast(e.message, "error");
+  }
+}
+
+async function loadActivity() {
+  try {
+    const logs  = await api("GET", "/api/admin/activity?limit=50");
+    const tbody = document.getElementById("log-tbody");
+    if (!logs.length) { tbody.innerHTML = `<tr><td colspan="4" class="empty">Sin actividad</td></tr>`; return; }
+
+    tbody.innerHTML = logs.map(l => `
+      <tr>
+        <td class="ts">${l.created_at?.slice(0,16).replace("T"," ") || "—"}</td>
+        <td style="font-family:var(--mono);font-size:11px">${l.user_email || "—"}</td>
+        <td><span class="log-action">${l.action}</span></td>
+        <td style="color:var(--ink3);font-size:12px">${l.detail || "—"}</td>
+      </tr>
+    `).join("");
+  } catch(e) {
+    toast(e.message, "error");
+  }
+}
+
+// ── Invite ────────────────────────────────────────────────────────────────────
+function openInviteModal() { document.getElementById("overlay").classList.add("open"); }
+function closeModal()      { document.getElementById("overlay").classList.remove("open"); }
+
+async function sendInvite() {
+  const email = document.getElementById("inv-email").value.trim();
+  const name  = document.getElementById("inv-name").value.trim();
+  const role  = document.getElementById("inv-role").value;
+  if (!email) return toast("Email requerido", "error");
+
+  try {
+    const d = await api("POST", "/api/admin/users/invite", { email, name, role });
+    toast(d.message, "ok");
+    closeModal();
+    loadUsers();
+    document.getElementById("inv-email").value = "";
+    document.getElementById("inv-name").value  = "";
+  } catch(e) { toast(e.message, "error"); }
+}
+
+// ── Edit ──────────────────────────────────────────────────────────────────────
+function openEditModal(id, role, status) {
+  document.getElementById("edit-id").value     = id;
+  document.getElementById("edit-role").value   = role;
+  document.getElementById("edit-status").value = status;
+  document.getElementById("overlay-edit").classList.add("open");
+}
+function closeEditModal() { document.getElementById("overlay-edit").classList.remove("open"); }
+
+async function saveEdit() {
+  const id     = document.getElementById("edit-id").value;
+  const role   = document.getElementById("edit-role").value;
+  const status = document.getElementById("edit-status").value;
+  try {
+    await api("PATCH", `/api/admin/users/${id}`, { role, status });
+    toast("Usuario actualizado", "ok");
+    closeEditModal();
+    loadUsers();
+  } catch(e) { toast(e.message, "error"); }
+}
+
+// ── Deactivate ────────────────────────────────────────────────────────────────
+async function deactivateUser(id, email) {
+  if (!confirm(`¿Desactivar a ${email}?`)) return;
+  try {
+    await api("DELETE", `/api/admin/users/${id}`);
+    toast("Usuario desactivado", "ok");
+    loadUsers();
+  } catch(e) { toast(e.message, "error"); }
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+let toastT;
+function toast(msg, type) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.className = `toast ${type} show`;
+  clearTimeout(toastT);
+  toastT = setTimeout(() => el.classList.remove("show"), 4000);
+}
+
+// Cerrar modales al click fuera
+["overlay","overlay-edit"].forEach(id => {
+  document.getElementById(id).addEventListener("click", e => {
+    if (e.target.id === id) e.target.classList.remove("open");
+  });
+});
+
+init();
+</script>
+</body>
+</html>
