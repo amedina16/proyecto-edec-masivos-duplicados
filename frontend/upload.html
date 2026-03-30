@@ -332,9 +332,33 @@ function buildMappingTable() {
   const tbody = document.getElementById("map-tbody");
   tbody.innerHTML = "";
 
-  // Opciones HS
+  // Agrupar propiedades por group
+  const groups = {};
+  hsPropList.forEach(p => {
+    const g = p.group || "other";
+    if (!groups[g]) groups[g] = [];
+    groups[g].push(p);
+  });
+
+  const groupLabels = {
+    contactinformation: "Información de contacto",
+    email_information:  "Email",
+    social_media:       "Redes sociales",
+    lead_intelligence:  "Inteligencia de leads",
+    conversion_information: "Conversión",
+    sales_properties:   "Ventas",
+  };
+
   const hsOpts = `<option value="">— Ignorar columna —</option>` +
-    hsPropList.map(p => `<option value="${p.value}">${p.label}</option>`).join("");
+    Object.entries(groups).map(([g, props]) => `
+      <optgroup label="${groupLabels[g] || g}">
+        ${props.map(p =>
+          `<option value="${p.value}" ${p.required ? 'style="font-weight:600"' : ""}>
+            ${p.label}${p.required ? " *" : ""}
+          </option>`
+        ).join("")}
+      </optgroup>
+    `).join("");
 
   parsedData.columns.forEach(col => {
     const preview = parsedData.preview.map(r => r[col]).filter(Boolean)[0] || "—";
@@ -355,7 +379,6 @@ function buildMappingTable() {
     `;
     tbody.appendChild(tr);
 
-    // Setear auto-mapeo
     const sel = tr.querySelector("select");
     if (autoVal) sel.value = autoVal;
   });

@@ -11,25 +11,66 @@ const upload  = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10
 const HS_BASE = "https://api.hubapi.com";
 const HS_PHONE_PROPS = ["phone", "mobilephone", "hs_whatsapp_phone"];
 
-// Propiedades HubSpot disponibles para mapear
-const HS_AVAILABLE_PROPS = [
-  { value: "firstname",        label: "Nombre" },
-  { value: "lastname",         label: "Apellido" },
-  { value: "phone",            label: "Teléfono (phone)" },
-  { value: "mobilephone",      label: "Móvil (mobilephone)" },
-  { value: "hs_whatsapp_phone",label: "WhatsApp" },
-  { value: "email",            label: "Email" },
-  { value: "hs_lead_status",   label: "Estado del lead" },
-  { value: "lifecyclestage",   label: "Etapa ciclo de vida" },
-  { value: "origen__c",        label: "Origen (custom)" },
-  { value: "campus__c",        label: "Campus (custom)" },
-  { value: "anio__c",          label: "Año (custom)" },
-  { value: "ciclo__c",         label: "Ciclo (custom)" },
-];
-
 // ── GET /api/upload/hs-properties ─────────────────────────────────────────────
-router.get("/hs-properties", (req, res) => {
-  res.json(HS_AVAILABLE_PROPS);
+router.get("/hs-properties", async (req, res) => {
+  const hsToken = process.env.HUBSPOT_TOKEN;
+  try {
+    const { data } = await axios.get(
+      "https://api.hubapi.com/properties/v2/contacts/properties",
+      { headers: { Authorization: `Bearer ${hsToken}` } }
+    );
+
+    // Filtrar solo propiedades escribibles y útiles
+    const excluded = new Set([
+      "hs_object_id","hs_created_by_user_id","hs_updated_by_user_id",
+      "hs_is_unworked","hs_sequences_actively_enrolled_count",
+      "hs_all_contact_vids","hs_calculated_merged_vids","hs_merged_object_ids",
+      "hs_prev_calculated_merged_vids","hs_calculated_phone_number",
+      "hs_calculated_phone_number_country_code","hs_calculated_phone_number_region_code",
+      "hs_calculated_phone_number_area_code","hs_email_quarantined",
+    ]);
+
+    const props = data
+      .filter(p =>
+        !p.readOnlyValue &&
+        !p.calculated &&
+        !p.externalOptions &&
+        !excluded.has(p.name) &&
+        p.fieldType !== "calculation_equation"
+      )
+      .map(p => ({
+        value:    p.name,
+        label:    p.label,
+        group:    p.groupName,
+        type:     p.fieldType,
+        required: ["firstname","phone"].includes(p.name),
+      }))
+      .sort((a, b) => {
+        // Poner campos importantes primero
+        const priority = ["firstname","lastname","phone","mobilephone","hs_whatsapp_phone","email"];
+        const ai = priority.indexOf(a.value);
+        const bi = priority.indexOf(b.value);
+        if (ai !== -1 && bi !== -1) return ai - bi;
+        if (ai !== -1) return -1;
+        if (bi !== -1) return 1;
+        return a.label.localeCompare(b.label);
+      });
+
+    res.json(props);
+  } catch (err) {
+    // Fallback a lista básica si falla la API
+    res.json([
+      { value: "firstname",         label: "Nombre",           group: "contactinformation", type: "text" },
+      { value: "lastname",          label: "Apellido",          group: "contactinformation", type: "text" },
+      { value: "phone",             label: "Teléfono",          group: "contactinformation", type: "phonenumber" },
+      { value: "mobilephone",       label: "Móvil",             group: "contactinformation", type: "phonenumber" },
+      { value: "hs_whatsapp_phone", label: "WhatsApp",          group: "contactinformation", type: "phonenumber" },
+      { value: "email",             label: "Email",             group: "contactinformation", type: "text" },
+      { value: "company",           label: "Empresa",           group: "contactinformation", type: "text" },
+      { value: "hs_lead_status",    label: "Estado del lead",   group: "contactinformation", type: "enumeration" },
+      { value: "lifecyclestage",    label: "Etapa ciclo vida",  group: "contactinformation", type: "enumeration" },
+    ]);
+  }
 });
 
 // ── POST /api/upload/parse ────────────────────────────────────────────────────
@@ -105,8 +146,8 @@ router.post("/submit", upload.single("file"), async (req, res) => {
     const rows  = xlsx.utils.sheet_to_json(sheet, { defval: "" });
 
     // Crear lote
-    const batchName = req.body.batch_name || req.file.originalname;
-    const [batchResult] = await query(
+    const batchName  = req.body.batch_name || req.file.originalname;
+    const batchResult = await query(
       "INSERT INTO upload_batches (name, filename, total_rows, status, created_by) VALUES (?, ?, ?, 'pending', ?)",
       [batchName, req.file.originalname, rows.length, req.user.email]
     );
