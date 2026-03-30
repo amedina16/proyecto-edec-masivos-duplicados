@@ -240,7 +240,7 @@ async function validateBatch(batchId) {
         const { data } = await axios.post(
           `${HS_BASE}/crm/v3/objects/contacts/search`,
           {
-            filterGroups: [{ filters: [{ propertyName: prop, operator: "EQ", value: row.telefono_norm }] }],
+            filterGroups: [{ filters: [{ propertyName: prop, operator: "CONTAINS_TOKEN", value: row.telefono_norm }] }],
             properties: ["hs_object_id"],
             limit: 1,
           },
