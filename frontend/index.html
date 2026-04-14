@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HubSpot Dedup — Inicio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap"
+    rel="stylesheet">
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    :root {
+      --ink: #0a0a0a;
+      --ink2: #3a3a3a;
+      --ink3: #888;
+      --paper: #f5f3ef;
+      --surf: #fff;
+      --border: #d4d0c8;
+      --accent: #c84b2f;
+      --blue: #1a1a2e;
+      --mono: 'IBM Plex Mono', monospace;
+      --sans: 'IBM Plex Sans', sans-serif;
+    }
+
+    html,
+    body {
+      height: 100%;
+      background: var(--paper);
+      font-family: var(--sans);
+      color: var(--ink)
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 40px 40px;
+      opacity: .3;
+      pointer-events: none;
+      z-index: 0
+    }
+
+    .corner {
+      position: fixed;
+      width: 20px;
+      height: 20px;
+      opacity: .25;
+      z-index: 1
+    }
+
+    .corner::before,
+    .corner::after {
+      content: '';
+      position: absolute;
+      background: var(--ink)
+    }
+
+    .corner::before {
+      width: 100%;
+      height: 1.5px
+    }
+
+    .corner::after {
+      width: 1.5px;
+      height: 100%
+    }
+
+    .tl {
+      top: 24px;
+      left: 24px
+    }
+
+    .tr {
+      top: 24px;
+      right: 24px;
+      transform: scaleX(-1)
+    }
+
+    .bl {
+      bottom: 24px;
+      left: 24px;
+      transform: scaleY(-1)
+    }
+
+    .br {
+      bottom: 24px;
+      right: 24px;
+      transform: scale(-1)
+    }
+
+    .page {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 24px;
+      position: relative;
+      z-index: 1
+    }
+
+    /* Header strip */
+    .eyebrow {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--ink3);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px
+    }
+
+    .eyebrow::before,
+    .eyebrow::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border)
+    }
+
+    /* Title */
+    .title {
+      font-family: var(--mono);
+      font-size: clamp(28px, 5vw, 48px);
+      font-weight: 600;
+      letter-spacing: -1px;
+      text-align: center;
+      line-height: 1.1;
+      margin-bottom: 12px
+    }
+
+    .title span {
+      color: var(--accent)
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: var(--ink3);
+      text-align: center;
+      margin-bottom: 56px;
+      font-weight: 300;
+      max-width: 340px;
+      line-height: 1.6
+    }
+
+    /* Cards */
+    .cards {
+      display: flex;
+      gap: 16px;
+      width: 100%;
+      max-width: 560px;
+      flex-wrap: wrap
+    }
+
+    .card {
+      flex: 1;
+      min-width: 220px;
+      background: var(--surf);
+      border: 1.5px solid var(--border);
+      border-radius: 2px;
+      padding: 28px 24px;
+      cursor: pointer;
+      transition: border-color .2s, transform .15s, box-shadow .2s;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      position: relative;
+      overflow: hidden
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform .25s cubic-bezier(.22, 1, .36, 1)
+    }
+
+    .card:hover {
+      border-color: var(--blue);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, .08)
+    }
+
+    .card:hover::before {
+      transform: scaleX(1)
+    }
+
+    .card-dedup::before {
+      background: var(--accent)
+    }
+
+    .card-upload::before {
+      background: #1d9e75
+    }
+
+    .card-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0
+    }
+
+    .icon-dedup {
+      background: #fef2f2;
+      color: var(--accent)
+    }
+
+    .icon-upload {
+      background: #f0fdf4;
+      color: #166534
+    }
+
+    .card-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--ink3)
+    }
+
+    .card-title {
+      font-family: var(--mono);
+      font-size: 16px;
+      font-weight: 600;
+      line-height: 1.2
+    }
+
+    .card-desc {
+      font-size: 12px;
+      color: var(--ink3);
+      line-height: 1.6;
+      font-weight: 300
+    }
+
+    .card-arrow {
+      margin-top: auto;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink3);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: gap .2s, color .2s
+    }
+
+    .card:hover .card-arrow {
+      gap: 10px;
+      color: var(--ink)
+    }
+
+    /* User chip */
+    .user-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: var(--blue);
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      z-index: 10;
+      border-bottom: 2px solid var(--accent)
+    }
+
+    .user-logo {
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 600;
+      color: #fff;
+      letter-spacing: .5px;
+      display: flex;
+      align-items: center;
+      gap: 8px
+    }
+
+    .logo-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent)
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 12px
+    }
+
+    .user-email {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: rgba(255, 255, 255, .5)
+    }
+
+    .btn-logout {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: .5px;
+      color: rgba(255, 255, 255, .4);
+      background: none;
+      border: 1px solid rgba(255, 255, 255, .15);
+      border-radius: 2px;
+      padding: 4px 10px;
+      cursor: pointer;
+      transition: color .15s, border-color .15s
+    }
+
+    .btn-logout:hover {
+      color: #fff;
+      border-color: rgba(255, 255, 255, .4)
+    }
+
+    /* Loading state */
+    .loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px
+    }
+
+    .spinner {
+      width: 28px;
+      height: 28px;
+      border: 2.5px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg)
+      }
+    }
+
+    .loading-text {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--ink3)
+    }
+
+    /* Animations */
+    .animate {
+      opacity: 0;
+      transform: translateY(16px);
+      animation: rise .5s cubic-bezier(.22, 1, .36, 1) forwards
+    }
+
+    .animate:nth-child(1) {
+      animation-delay: .05s
+    }
+
+    .animate:nth-child(2) {
+      animation-delay: .12s
+    }
+
+    .animate:nth-child(3) {
+      animation-delay: .2s
+    }
+
+    .animate:nth-child(4) {
+      animation-delay: .28s
+    }
+
+    @keyframes rise {
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    /* Role badge */
+    .role-badge {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 2px;
+      border: 1px solid
+    }
+
+    .role-admin {
+      background: #f5f3ff;
+      color: #4c1d95;
+      border-color: #c4b5fd
+    }
+
+    .role-dedup {
+      background: #eff6ff;
+      color: #1e40af;
+      border-color: #bfdbfe
+    }
+
+    .role-upload {
+      background: #f0fdf4;
+      color: #166534;
+      border-color: #86efac
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="corner tl"></div>
+  <div class="corner tr"></div>
+  <div class="corner bl"></div>
+  <div class="corner br"></div>
+
+  <!-- Top bar -->
+  <div class="user-bar" id="user-bar" style="display:none">
+    <div class="user-logo">
+      <div class="logo-dot"></div>HubSpot Dedup
+    </div>
+    <div class="user-info">
+      <span class="role-badge" id="role-badge"></span>
+      <span class="user-email" id="user-email"></span>
+      <button class="btn-logout" onclick="logout()">Salir</button>
+    </div>
+  </div>
+
+  <div class="page" id="page-loading">
+    <div class="loading">
+      <div class="spinner"></div>
+      <div class="loading-text" id="loading-text">Verificando sesión...</div>
+    </div>
+  </div>
+
+  <div class="page" id="page-home" style="display:none;padding-top:80px">
+    <div class="eyebrow animate">Sistema de gestión</div>
+    <h1 class="title animate">HubSpot<br><span>Dedup</span></h1>
+    <p class="subtitle animate">Selecciona el módulo al que deseas acceder</p>
+
+    <div class="cards" id="cards-container"></div>
+  </div>
+
+  <script>
+    let TOKEN = null;
+    let USER_ROLE = null;
+
+    const CARDS = {
+      dedup: {
+        href: "/dashboard.html",
+        cls: "card-dedup",
+        icon: "⇌",
+        iconcls: "icon-dedup",
+        label: "Módulo 01",
+        title: "Duplicados",
+        desc: "Detecta y mergea contactos duplicados por número de teléfono en tu CRM.",
+        arrow: "Ir al dashboard",
+      },
+      upload: {
+        href: "/upload.html",
+        cls: "card-upload",
+        icon: "↑",
+        iconcls: "icon-upload",
+        label: "Módulo 02",
+        title: "Carga masiva",
+        desc: "Importa contactos desde Excel o CSV con validación previa de duplicados.",
+        arrow: "Ir a carga masiva",
+      },
+    };
+
+    const ROLE_ACCESS = {
+      admin: ["dedup", "upload"],
+      dedup: ["dedup"],
+      upload: ["upload"],
+    };
+
+    function init() {
+      // Leer token del hash (magic link) o localStorage
+      const hash = location.hash.slice(1);
+      const params = new URLSearchParams(hash);
+      const t = params.get("token");
+
+      if (t) {
+        TOKEN = t;
+        localStorage.setItem("hs_dedup_token", t);
+        history.replaceState(null, "", location.pathname);
+      } else {
+        TOKEN = localStorage.getItem("hs_dedup_token");
+      }
+
+      if (!TOKEN) {
+        document.getElementById("loading-text").textContent = "Sin sesión activa";
+        return setTimeout(() => location.href = "/login.html", 800);
+      }
+
+      try {
+        const payload = JSON.parse(atob(TOKEN.split(".")[1]));
+
+        if (payload.exp * 1000 < Date.now()) {
+          localStorage.removeItem("hs_dedup_token");
+          document.getElementById("loading-text").textContent = "Sesión expirada";
+          return setTimeout(() => location.href = "/login.html", 800);
+        }
+
+        USER_ROLE = payload.role || "dedup";
+
+        // Mostrar barra superior
+        document.getElementById("user-bar").style.display = "flex";
+        document.getElementById("user-email").textContent = payload.email;
+        const badge = document.getElementById("role-badge");
+        badge.textContent = USER_ROLE;
+        badge.className = `role-badge role-${USER_ROLE}`;
+
+        // Si solo tiene acceso a un módulo, redirigir directamente
+        const access = ROLE_ACCESS[USER_ROLE] || [];
+        if (access.length === 1) {
+          document.getElementById("loading-text").textContent = "Redirigiendo...";
+          return setTimeout(() => location.href = CARDS[access[0]].href, 400);
+        }
+
+        // Tiene acceso a más de un módulo → mostrar cards
+        renderCards(access);
+
+      } catch {
+        localStorage.removeItem("hs_dedup_token");
+        document.getElementById("loading-text").textContent = "Token inválido";
+        setTimeout(() => location.href = "/login.html", 800);
+      }
+    }
+
+    function renderCards(access) {
+      const container = document.getElementById("cards-container");
+      access.forEach((key, i) => {
+        const c = CARDS[key];
+        const a = document.createElement("a");
+        a.href = c.href;
+        a.className = `card ${c.cls} animate`;
+        a.style.animationDelay = `${0.28 + i * 0.08}s`;
+        a.innerHTML = `
+      <div class="card-icon ${c.iconcls}">${c.icon}</div>
+      <div>
+        <div class="card-label">${c.label}</div>
+        <div class="card-title">${c.title}</div>
+      </div>
+      <div class="card-desc">${c.desc}</div>
+      <div class="card-arrow">${c.arrow} →</div>
+    `;
+        container.appendChild(a);
+      });
+
+      document.getElementById("page-loading").style.display = "none";
+      document.getElementById("page-home").style.display = "flex";
+    }
+
+    function logout() {
+      localStorage.removeItem("hs_dedup_token");
+      location.href = "/login.html";
+    }
+
+    init();
+  </script>
+</body>
+
+</html>

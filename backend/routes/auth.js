@@ -95,9 +95,7 @@ router.get("/verify", async (req, res) => {
   );
 
   // Redirigir según rol
-  const dest = record.role === "upload" ? "/upload.html" : "/dashboard.html";
-  res.redirect(`${process.env.APP_URL}${dest}#token=${jwtToken}`);
-});
+  res.redirect(`${process.env.APP_URL}/index.html#token=${jwtToken}`);
 
 // ── GET /api/auth/me ──────────────────────────────────────────────────────────
 router.get("/me", async (req, res) => {

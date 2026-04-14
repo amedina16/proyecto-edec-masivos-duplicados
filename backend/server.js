@@ -64,8 +64,7 @@ function loadRoutes() {
         process.env.JWT_SECRET,
         { expiresIn: "8h" }
       );
-      const dest = inv.role === "upload" ? "/upload.html" : "/dashboard.html";
-      res.redirect(`${process.env.APP_URL}${dest}#token=${jwtToken}`);
+      res.redirect(`${process.env.APP_URL}/index.html#token=${jwtToken}`);
     } catch (e) {
       res.redirect(`${process.env.APP_URL}/login.html?error=expired`);
     }
