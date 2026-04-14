@@ -10,8 +10,11 @@ app.use(cors({ origin: process.env.APP_URL, credentials: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "../frontend")));
 
-// Health check — siempre responde aunque DB falle
+// Health check
 app.get("/health", (_, res) => res.json({ ok: true }));
+
+// Auth carga SIEMPRE de inmediato — no depende de DB para registrar la ruta
+app.use("/api/auth", require("./routes/auth"));
 
 // Iniciar servidor PRIMERO, luego conectar DB
 app.listen(PORT, () => {
@@ -33,12 +36,11 @@ async function initDB() {
       await new Promise(r => setTimeout(r, 5000));
     }
   }
-  console.error("❌ No se pudo conectar a MySQL después de 10 intentos. Rutas de DB no disponibles.");
-  loadRoutes(); // carga rutas de todas formas para que auth funcione sin DB
+  console.error("❌ No se pudo conectar a MySQL después de 10 intentos.");
+  loadRoutes();
 }
 
 function loadRoutes() {
-  const authRoutes   = require("./routes/auth");
   const auditRoutes  = require("./routes/audit");
   const mergeRoutes  = require("./routes/merge");
   const uploadRoutes = require("./routes/upload");
@@ -47,7 +49,6 @@ function loadRoutes() {
   const { query, logActivity } = require("./db");
   const { requirePermission, requireAdmin } = require("./middleware/auth");
 
-  // Invitation verify
   app.get("/api/auth/invite", async (req, res) => {
     try {
       const { token } = req.query;
@@ -70,7 +71,6 @@ function loadRoutes() {
     }
   });
 
-  app.use("/api/auth",   authRoutes);
   app.use("/api/audit",  requirePermission("audit"),  auditRoutes);
   app.use("/api/merge",  requirePermission("merge"),  mergeRoutes);
   app.use("/api/upload", requirePermission("upload"), uploadRoutes);
