@@ -1,599 +1,733 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard — HubSpot Dedup</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --ink:    #0a0a0a;
-    --ink2:   #3a3a3a;
-    --ink3:   #888;
-    --paper:  #f5f3ef;
-    --surf:   #ffffff;
-    --border: #d4d0c8;
-    --accent: #c84b2f;
-    --blue:   #1a1a2e;
-    --green:  #166534;
-    --green-bg:#f0fdf4;
-    --red:    #991b1b;
-    --red-bg: #fff1f2;
-    --mono:   'IBM Plex Mono', monospace;
-    --sans:   'IBM Plex Sans', sans-serif;
-    --row-h:  #fef9c3;
-  }
-  html, body { height: 100%; font-family: var(--sans); color: var(--ink); background: var(--paper); font-size: 13px; }
-
-  /* ── Layout ── */
-  .shell { display: flex; flex-direction: column; min-height: 100vh; }
-
-  header {
-    background: var(--blue);
-    color: #fff;
-    padding: 0 28px;
-    height: 56px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-shrink: 0;
-    border-bottom: 3px solid var(--accent);
-  }
-
-  .logo {
-    font-family: var(--mono);
-    font-size: 15px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .logo-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: var(--accent);
-  }
-
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .user-chip {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: rgba(255,255,255,0.55);
-    letter-spacing: 0.5px;
-  }
-
-  .btn-logout {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: rgba(255,255,255,0.4);
-    background: none;
-    border: 1px solid rgba(255,255,255,0.15);
-    border-radius: 2px;
-    padding: 5px 10px;
-    cursor: pointer;
-    letter-spacing: 0.5px;
-    transition: border-color 0.15s, color 0.15s;
-  }
-  .btn-logout:hover { color: #fff; border-color: rgba(255,255,255,0.4); }
-
-  /* ── Toolbar ── */
-  .toolbar {
-    background: var(--surf);
-    border-bottom: 1px solid var(--border);
-    padding: 14px 28px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-
-  .btn {
-    font-family: var(--mono);
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    padding: 9px 18px;
-    border-radius: 2px;
-    border: none;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    transition: background 0.15s, opacity 0.15s;
-  }
-  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-  .btn-primary { background: var(--blue); color: #fff; }
-  .btn-primary:hover:not(:disabled) { background: #0f0f1e; }
-  .btn-danger  { background: var(--accent); color: #fff; }
-  .btn-danger:hover:not(:disabled)  { background: #a83a20; }
-  .btn-ghost   { background: transparent; color: var(--ink2); border: 1px solid var(--border); }
-  .btn-ghost:hover:not(:disabled) { background: var(--paper); }
-
-  .stat-pill {
-    font-family: var(--mono);
-    font-size: 11px;
-    padding: 5px 12px;
-    border-radius: 2px;
-    border: 1px solid var(--border);
-    background: var(--paper);
-    color: var(--ink2);
-    margin-left: auto;
-  }
-
-  /* ── Main ── */
-  .main { flex: 1; overflow: auto; padding: 24px 28px; }
-
-  /* ── States ── */
-  .state {
-    display: none;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 300px;
-    text-align: center;
-    gap: 16px;
-  }
-  .state.active { display: flex; }
-
-  .state-icon {
-    font-size: 40px;
-    opacity: 0.25;
-  }
-
-  .state-title {
-    font-family: var(--mono);
-    font-size: 15px;
-    color: var(--ink2);
-  }
-
-  .state-sub {
-    font-size: 12px;
-    color: var(--ink3);
-    max-width: 320px;
-    line-height: 1.6;
-  }
-
-  /* ── Progress bar ── */
-  .progress-wrap {
-    width: 240px;
-    height: 3px;
-    background: var(--border);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-
-  .progress-bar {
-    height: 100%;
-    background: var(--accent);
-    border-radius: 2px;
-    animation: indeterminate 1.4s ease infinite;
-    transform-origin: left;
-  }
-
-  @keyframes indeterminate {
-    0%   { transform: scaleX(0) translateX(0); }
-    50%  { transform: scaleX(0.5) translateX(100%); }
-    100% { transform: scaleX(0) translateX(300%); }
-  }
-
-  /* ── Table ── */
-  #table-wrap { display: none; }
-
-  .group-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 14px;
-    background: var(--blue);
-    color: #fff;
-    border-radius: 2px 2px 0 0;
-    margin-top: 20px;
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.5px;
-  }
-
-  .group-header:first-child { margin-top: 0; }
-
-  .group-phone {
-    font-weight: 600;
-    font-size: 13px;
-    letter-spacing: 1px;
-  }
-
-  .group-count {
-    font-size: 10px;
-    opacity: 0.55;
-    margin-left: auto;
-  }
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    background: var(--surf);
-    border: 1px solid var(--border);
-    border-top: none;
-    margin-bottom: 0;
-  }
-
-  th {
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    color: var(--ink3);
-    background: var(--paper);
-    padding: 8px 12px;
-    text-align: left;
-    border-bottom: 1px solid var(--border);
-    font-weight: 400;
-  }
-
-  td {
-    padding: 9px 12px;
-    border-bottom: 1px solid var(--border);
-    vertical-align: middle;
-    font-size: 12px;
-  }
-
-  tr:last-child td { border-bottom: none; }
-
-  tr.is-primary {
-    background: #fffbeb;
-  }
-
-  tr.is-primary td:first-child {
-    border-left: 3px solid var(--accent);
-  }
-
-  /* Radio button principal */
-  .radio-wrap {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  input[type="radio"] {
-    width: 16px;
-    height: 16px;
-    accent-color: var(--accent);
-    cursor: pointer;
-  }
-
-  .badge {
-    display: inline-block;
-    font-family: var(--mono);
-    font-size: 9px;
-    padding: 2px 6px;
-    border-radius: 2px;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    vertical-align: middle;
-    margin-left: 4px;
-  }
-
-  .badge-primary { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
-  .badge-suggested { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; font-size: 8px; }
-
-  .id-chip {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--ink3);
-    background: var(--paper);
-    padding: 2px 6px;
-    border-radius: 2px;
-    border: 1px solid var(--border);
-  }
-
-  /* ── Toast ── */
-  .toast {
-    position: fixed;
-    bottom: 28px;
-    right: 28px;
-    font-family: var(--mono);
-    font-size: 12px;
-    padding: 14px 20px;
-    border-radius: 2px;
-    max-width: 360px;
-    line-height: 1.5;
-    transform: translateY(80px);
-    opacity: 0;
-    transition: transform 0.3s, opacity 0.3s;
-    z-index: 100;
-  }
-  .toast.show { transform: translateY(0); opacity: 1; }
-  .toast.ok    { background: var(--green-bg); border: 1px solid #86efac; color: var(--green); }
-  .toast.error { background: var(--red-bg);   border: 1px solid #fca5a5; color: var(--red); }
-
-  /* ── Modal confirmación ── */
-  .overlay {
-    position: fixed; inset: 0;
-    background: rgba(10,10,10,0.55);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 200;
-    backdrop-filter: blur(2px);
-  }
-  .overlay.open { display: flex; }
-
-  .modal {
-    background: var(--surf);
-    border: 1.5px solid var(--border);
-    border-radius: 2px;
-    padding: 32px 28px;
-    width: 100%;
-    max-width: 440px;
-    animation: rise 0.25s ease both;
-  }
-
-  @keyframes rise {
-    from { opacity: 0; transform: translateY(12px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-
-  .modal-title {
-    font-family: var(--mono);
-    font-size: 15px;
-    font-weight: 600;
-    margin-bottom: 12px;
-  }
-
-  .modal-body {
-    font-size: 13px;
-    color: var(--ink2);
-    line-height: 1.6;
-    margin-bottom: 24px;
-  }
-
-  .modal-body strong { color: var(--accent); }
-
-  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
-
-  /* Spinner inline */
-  .spin {
-    display: inline-block;
-    width: 12px; height: 12px;
-    border: 2px solid rgba(255,255,255,0.3);
-    border-top-color: #fff;
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-    vertical-align: middle;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-</style>
-</head>
-<body>
-<div class="shell">
-
-  <!-- Header -->
-  <header>
-    <div class="logo">
-      <div class="logo-dot"></div>
-      HubSpot Dedup
-    </div>
-    <div class="header-right">
-      <nav style="display:flex;gap:4px;margin-right:12px">
-        <a href="/dashboard.html" style="font-family:var(--mono);font-size:11px;color:#fff;padding:5px 10px;background:rgba(255,255,255,.15);border-radius:2px;text-decoration:none">Duplicados</a>
-        <a href="/upload.html" style="font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.5);padding:5px 10px;border-radius:2px;text-decoration:none;transition:background .15s" onmouseover="this.style.background='rgba(255,255,255,.1)'" onmouseout="this.style.background='transparent'">Carga masiva</a>
-      </nav>
-      <span class="user-chip" id="user-email"></span>
-      <button class="btn-logout" onclick="logout()">Salir</button>
-    </div>
-  </header>
-
-  <!-- Toolbar -->
-  <div class="toolbar">
-    <button class="btn btn-primary" id="btn-audit" onclick="runAudit()">
-      ⟳ &nbsp;Ejecutar auditoría
-    </button>
-    <button class="btn btn-danger" id="btn-merge" onclick="openMergeModal()" disabled>
-      ⇒ &nbsp;Ejecutar merges
-    </button>
-    <button class="btn btn-ghost" id="btn-export" onclick="exportCSV()" style="display:none">
-      ↓ &nbsp;Exportar CSV
-    </button>
-    <span class="stat-pill" id="stat-pill" style="display:none"></span>
-  </div>
-
-  <!-- Main -->
-  <div class="main">
-
-    <!-- Estado: idle -->
-    <div class="state active" id="state-idle">
-      <div class="state-icon">◎</div>
-      <div class="state-title">Sin auditoría activa</div>
-      <div class="state-sub">Presiona "Ejecutar auditoría" para descargar todos los contactos de HubSpot y detectar duplicados por teléfono.</div>
-    </div>
-
-    <!-- Estado: loading -->
-    <div class="state" id="state-loading">
-      <div class="progress-wrap"><div class="progress-bar"></div></div>
-      <div class="state-title">Descargando contactos...</div>
-      <div class="state-sub">Esto puede tomar 1-3 minutos dependiendo del tamaño de la base de datos.</div>
-    </div>
-
-    <!-- Estado: vacío -->
-    <div class="state" id="state-empty">
-      <div class="state-icon">✓</div>
-      <div class="state-title">Sin duplicados</div>
-      <div class="state-sub">No se encontraron contactos con el mismo número de teléfono.</div>
-    </div>
-
-    <!-- Tabla de resultados -->
-    <div id="table-wrap"></div>
-
-  </div>
-</div>
-
-<!-- Modal confirmación merge -->
-<div class="overlay" id="overlay">
-  <div class="modal">
-    <div class="modal-title">Confirmar merges</div>
-    <div class="modal-body" id="modal-body"></div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-danger" id="btn-confirm-merge" onclick="executeMerge()">
-        Confirmar y mergear
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- Toast -->
-<div class="toast" id="toast"></div>
-
-<script>
-// ── Auth ────────────────────────────────────────────────────────────────────
-let TOKEN = null;
-let GROUPS = [];
-
-function init() {
-  const hash = location.hash.slice(1);
-  const params = new URLSearchParams(hash);
-  const t = params.get("token");
-
-  if (t) {
-    TOKEN = t;
-    localStorage.setItem("hs_dedup_token", t);
-    history.replaceState(null, "", location.pathname);
-  } else {
-    TOKEN = localStorage.getItem("hs_dedup_token");
-  }
-
-  if (!TOKEN) return redirectLogin();
-
-  // Decode email from JWT (no verify client-side, just display)
-  try {
-    const payload = JSON.parse(atob(TOKEN.split(".")[1]));
-    document.getElementById("user-email").textContent = payload.email;
-    // Check expiry
-    if (payload.exp * 1000 < Date.now()) {
-      localStorage.removeItem("hs_dedup_token");
-      return redirectLogin();
-    }
-  } catch { redirectLogin(); }
-}
-
-function redirectLogin() { location.href = "/login.html"; }
-
-function logout() {
-  localStorage.removeItem("hs_dedup_token");
-  redirectLogin();
-}
-
-async function api(method, path, body) {
-  const res = await fetch(path, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${TOKEN}`,
-    },
-    ...(body && { body: JSON.stringify(body) }),
-  });
-  if (res.status === 401) { logout(); return; }
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Error del servidor");
-  return data;
-}
-
-// ── Audit (asíncrona con polling) ──────────────────────────────────────────
-async function runAudit() {
-  setState("loading");
-  setLoadingText("Iniciando auditoría...");
-  document.getElementById("btn-audit").disabled = true;
-  document.getElementById("btn-merge").disabled = true;
-  document.getElementById("btn-export").style.display = "none";
-  document.getElementById("stat-pill").style.display = "none";
-  document.getElementById("table-wrap").style.display = "none";
-  GROUPS = [];
-
-  try {
-    // 1. Iniciar job en background
-    const { jobId } = await api("POST", "/api/audit/start");
-
-    // 2. Polling cada 3 segundos
-    const data = await pollJob(jobId);
-
-    GROUPS = data.groups;
-
-    if (!GROUPS.length) {
-      setState("empty");
-    } else {
-      renderTable(GROUPS);
-      setState(null);
-      document.getElementById("table-wrap").style.display = "block";
-      document.getElementById("btn-merge").disabled = false;
-      document.getElementById("btn-export").style.display = "inline-flex";
-      document.getElementById("stat-pill").textContent =
-        `${data.total_contacts.toLocaleString()} contactos · ${GROUPS.length} grupos duplicados`;
-      document.getElementById("stat-pill").style.display = "inline-block";
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — HubSpot Dedup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap"
+    rel="stylesheet">
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
 
-    toast(`Auditoría completada. ${data.total_contacts.toLocaleString()} contactos analizados.`, "ok");
-  } catch (e) {
-    setState("idle");
-    toast(e.message, "error");
-  } finally {
-    document.getElementById("btn-audit").disabled = false;
-  }
-}
+    :root {
+      --ink: #0a0a0a;
+      --ink2: #3a3a3a;
+      --ink3: #888;
+      --paper: #f5f3ef;
+      --surf: #ffffff;
+      --border: #d4d0c8;
+      --accent: #c84b2f;
+      --blue: #1a1a2e;
+      --green: #166534;
+      --green-bg: #f0fdf4;
+      --red: #991b1b;
+      --red-bg: #fff1f2;
+      --mono: 'IBM Plex Mono', monospace;
+      --sans: 'IBM Plex Sans', sans-serif;
+      --row-h: #fef9c3;
+    }
 
-function setLoadingText(text) {
-  const el = document.querySelector("#state-loading .state-title");
-  if (el) el.textContent = text;
-}
+    html,
+    body {
+      height: 100%;
+      font-family: var(--sans);
+      color: var(--ink);
+      background: var(--paper);
+      font-size: 13px;
+    }
 
-async function pollJob(jobId) {
-  return new Promise((resolve, reject) => {
-    const interval = setInterval(async () => {
-      try {
-        const res = await api("GET", `/api/audit/status/${jobId}`);
-        if (res.status === "running") {
-          setLoadingText(`Descargando contactos... ${res.progress.toLocaleString()}`);
-        } else if (res.status === "done") {
-          clearInterval(interval);
-          resolve(res);
-        } else if (res.status === "error") {
-          clearInterval(interval);
-          reject(new Error(res.error));
-        }
-      } catch (e) {
-        clearInterval(interval);
-        reject(e);
+    /* ── Layout ── */
+    .shell {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--blue);
+      color: #fff;
+      padding: 0 28px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      border-bottom: 3px solid var(--accent);
+    }
+
+    .logo {
+      font-family: var(--mono);
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .user-chip {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.55);
+      letter-spacing: 0.5px;
+    }
+
+    .btn-logout {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.4);
+      background: none;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 2px;
+      padding: 5px 10px;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    .btn-logout:hover {
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.4);
+    }
+
+    /* ── Toolbar ── */
+    .toolbar {
+      background: var(--surf);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 9px 18px;
+      border-radius: 2px;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      transition: background 0.15s, opacity 0.15s;
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: #0f0f1e;
+    }
+
+    .btn-danger {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-danger:hover:not(:disabled) {
+      background: #a83a20;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--ink2);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover:not(:disabled) {
+      background: var(--paper);
+    }
+
+    .stat-pill {
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 5px 12px;
+      border-radius: 2px;
+      border: 1px solid var(--border);
+      background: var(--paper);
+      color: var(--ink2);
+      margin-left: auto;
+    }
+
+    /* ── Main ── */
+    .main {
+      flex: 1;
+      overflow: auto;
+      padding: 24px 28px;
+    }
+
+    /* ── States ── */
+    .state {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 300px;
+      text-align: center;
+      gap: 16px;
+    }
+
+    .state.active {
+      display: flex;
+    }
+
+    .state-icon {
+      font-size: 40px;
+      opacity: 0.25;
+    }
+
+    .state-title {
+      font-family: var(--mono);
+      font-size: 15px;
+      color: var(--ink2);
+    }
+
+    .state-sub {
+      font-size: 12px;
+      color: var(--ink3);
+      max-width: 320px;
+      line-height: 1.6;
+    }
+
+    /* ── Progress bar ── */
+    .progress-wrap {
+      width: 240px;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      animation: indeterminate 1.4s ease infinite;
+      transform-origin: left;
+    }
+
+    @keyframes indeterminate {
+      0% {
+        transform: scaleX(0) translateX(0);
       }
-    }, 3000);
-  });
-}
 
-// ── Render ─────────────────────────────────────────────────────────────────
-function renderTable(groups) {
-  const wrap = document.getElementById("table-wrap");
-  wrap.innerHTML = "";
+      50% {
+        transform: scaleX(0.5) translateX(100%);
+      }
 
-  groups.forEach((g, gi) => {
-    const hdr = document.createElement("div");
-    hdr.className = "group-header";
-    hdr.innerHTML = `
+      100% {
+        transform: scaleX(0) translateX(300%);
+      }
+    }
+
+    /* ── Table ── */
+    #table-wrap {
+      display: none;
+    }
+
+    .group-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: var(--blue);
+      color: #fff;
+      border-radius: 2px 2px 0 0;
+      margin-top: 20px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.5px;
+    }
+
+    .group-header:first-child {
+      margin-top: 0;
+    }
+
+    .group-phone {
+      font-weight: 600;
+      font-size: 13px;
+      letter-spacing: 1px;
+    }
+
+    .group-count {
+      font-size: 10px;
+      opacity: 0.55;
+      margin-left: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--surf);
+      border: 1px solid var(--border);
+      border-top: none;
+      margin-bottom: 0;
+    }
+
+    th {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--ink3);
+      background: var(--paper);
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-weight: 400;
+    }
+
+    td {
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+      font-size: 12px;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr.is-primary {
+      background: #fffbeb;
+    }
+
+    tr.is-primary td:first-child {
+      border-left: 3px solid var(--accent);
+    }
+
+    /* Radio button principal */
+    .radio-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    input[type="radio"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .badge {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 9px;
+      padding: 2px 6px;
+      border-radius: 2px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      vertical-align: middle;
+      margin-left: 4px;
+    }
+
+    .badge-primary {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fde68a;
+    }
+
+    .badge-suggested {
+      background: #dbeafe;
+      color: #1e40af;
+      border: 1px solid #bfdbfe;
+      font-size: 8px;
+    }
+
+    .id-chip {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--ink3);
+      background: var(--paper);
+      padding: 2px 6px;
+      border-radius: 2px;
+      border: 1px solid var(--border);
+    }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 14px 20px;
+      border-radius: 2px;
+      max-width: 360px;
+      line-height: 1.5;
+      transform: translateY(80px);
+      opacity: 0;
+      transition: transform 0.3s, opacity 0.3s;
+      z-index: 100;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .toast.ok {
+      background: var(--green-bg);
+      border: 1px solid #86efac;
+      color: var(--green);
+    }
+
+    .toast.error {
+      background: var(--red-bg);
+      border: 1px solid #fca5a5;
+      color: var(--red);
+    }
+
+    /* ── Modal confirmación ── */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 10, 10, 0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      backdrop-filter: blur(2px);
+    }
+
+    .overlay.open {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--surf);
+      border: 1.5px solid var(--border);
+      border-radius: 2px;
+      padding: 32px 28px;
+      width: 100%;
+      max-width: 440px;
+      animation: rise 0.25s ease both;
+    }
+
+    @keyframes rise {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .modal-title {
+      font-family: var(--mono);
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    .modal-body {
+      font-size: 13px;
+      color: var(--ink2);
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+
+    .modal-body strong {
+      color: var(--accent);
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    /* Spinner inline */
+    .spin {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="shell">
+
+    <!-- Header -->
+    <header>
+      <div class="logo">
+        <div class="logo-dot"></div>
+        HubSpot Dedup
+      </div>
+      <div class="header-right">
+        <nav style="display:flex;gap:4px;margin-right:12px">
+          <a href="/dashboard.html"
+            style="font-family:var(--mono);font-size:11px;color:#fff;padding:5px 10px;background:rgba(255,255,255,.15);border-radius:2px;text-decoration:none">Duplicados</a>
+          <a href="/upload.html"
+            style="font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.5);padding:5px 10px;border-radius:2px;text-decoration:none;transition:background .15s"
+            onmouseover="this.style.background='rgba(255,255,255,.1)'"
+            onmouseout="this.style.background='transparent'">Carga masiva</a>
+        </nav>
+        <span class="user-chip" id="user-email"></span>
+        <button class="btn-logout" onclick="logout()">Salir</button>
+      </div>
+    </header>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <button class="btn btn-primary" id="btn-audit" onclick="runAudit()">
+        ⟳ &nbsp;Ejecutar auditoría
+      </button>
+      <button class="btn btn-danger" id="btn-merge" onclick="openMergeModal()" disabled>
+        ⇒ &nbsp;Ejecutar merges
+      </button>
+      <button class="btn btn-ghost" id="btn-export" onclick="exportCSV()" style="display:none">
+        ↓ &nbsp;Exportar CSV
+      </button>
+      <span class="stat-pill" id="stat-pill" style="display:none"></span>
+    </div>
+
+    <!-- Main -->
+    <div class="main">
+
+      <!-- Estado: idle -->
+      <div class="state active" id="state-idle">
+        <div class="state-icon">◎</div>
+        <div class="state-title">Sin auditoría activa</div>
+        <div class="state-sub">Presiona "Ejecutar auditoría" para descargar todos los contactos de HubSpot y detectar
+          duplicados por teléfono.</div>
+      </div>
+
+      <!-- Estado: loading -->
+      <div class="state" id="state-loading">
+        <div class="progress-wrap">
+          <div class="progress-bar"></div>
+        </div>
+        <div class="state-title">Descargando contactos...</div>
+        <div class="state-sub">Esto puede tomar 1-3 minutos dependiendo del tamaño de la base de datos.</div>
+      </div>
+
+      <!-- Estado: vacío -->
+      <div class="state" id="state-empty">
+        <div class="state-icon">✓</div>
+        <div class="state-title">Sin duplicados</div>
+        <div class="state-sub">No se encontraron contactos con el mismo número de teléfono.</div>
+      </div>
+
+      <!-- Tabla de resultados -->
+      <div id="table-wrap"></div>
+
+    </div>
+  </div>
+
+  <!-- Modal confirmación merge -->
+  <div class="overlay" id="overlay">
+    <div class="modal">
+      <div class="modal-title">Confirmar merges</div>
+      <div class="modal-body" id="modal-body"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+        <button class="btn btn-danger" id="btn-confirm-merge" onclick="executeMerge()">
+          Confirmar y mergear
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ── Auth ────────────────────────────────────────────────────────────────────
+    let TOKEN = null;
+    let GROUPS = [];
+
+    function init() {
+      const hash = location.hash.slice(1);
+      const params = new URLSearchParams(hash);
+      const t = params.get("token");
+
+      if (t) {
+        TOKEN = t;
+        localStorage.setItem("hs_dedup_token", t);
+        history.replaceState(null, "", location.pathname);
+      } else {
+        TOKEN = localStorage.getItem("hs_dedup_token");
+      }
+
+      if (!TOKEN) return redirectLogin();
+
+      try {
+        const payload = JSON.parse(atob(TOKEN.split(".")[1]));
+        document.getElementById("user-email").textContent = payload.email;
+
+        if (payload.exp * 1000 < Date.now()) {
+          localStorage.removeItem("hs_dedup_token");
+          return redirectLogin();
+        }
+
+        // Redirigir según rol
+        if (payload.role === "upload") return location.href = "/upload.html";
+        if (payload.role === "admin") {
+          document.getElementById("nav-admin").style.display = "inline";
+        }
+
+      } catch { redirectLogin(); }
+    }
+
+    function redirectLogin() { location.href = "/login.html"; }
+
+    function logout() {
+      localStorage.removeItem("hs_dedup_token");
+      redirectLogin();
+    }
+
+    async function api(method, path, body) {
+      const res = await fetch(path, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${TOKEN}`,
+        },
+        ...(body && { body: JSON.stringify(body) }),
+      });
+      if (res.status === 401) { logout(); return; }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Error del servidor");
+      return data;
+    }
+
+    // ── Audit (asíncrona con polling) ──────────────────────────────────────────
+    async function runAudit() {
+      setState("loading");
+      setLoadingText("Iniciando auditoría...");
+      document.getElementById("btn-audit").disabled = true;
+      document.getElementById("btn-merge").disabled = true;
+      document.getElementById("btn-export").style.display = "none";
+      document.getElementById("stat-pill").style.display = "none";
+      document.getElementById("table-wrap").style.display = "none";
+      GROUPS = [];
+
+      try {
+        // 1. Iniciar job en background
+        const { jobId } = await api("POST", "/api/audit/start");
+
+        // 2. Polling cada 3 segundos
+        const data = await pollJob(jobId);
+
+        GROUPS = data.groups;
+
+        if (!GROUPS.length) {
+          setState("empty");
+        } else {
+          renderTable(GROUPS);
+          setState(null);
+          document.getElementById("table-wrap").style.display = "block";
+          document.getElementById("btn-merge").disabled = false;
+          document.getElementById("btn-export").style.display = "inline-flex";
+          document.getElementById("stat-pill").textContent =
+            `${data.total_contacts.toLocaleString()} contactos · ${GROUPS.length} grupos duplicados`;
+          document.getElementById("stat-pill").style.display = "inline-block";
+        }
+
+        toast(`Auditoría completada. ${data.total_contacts.toLocaleString()} contactos analizados.`, "ok");
+      } catch (e) {
+        setState("idle");
+        toast(e.message, "error");
+      } finally {
+        document.getElementById("btn-audit").disabled = false;
+      }
+    }
+
+    function setLoadingText(text) {
+      const el = document.querySelector("#state-loading .state-title");
+      if (el) el.textContent = text;
+    }
+
+    async function pollJob(jobId) {
+      return new Promise((resolve, reject) => {
+        const interval = setInterval(async () => {
+          try {
+            const res = await api("GET", `/api/audit/status/${jobId}`);
+            if (res.status === "running") {
+              setLoadingText(`Descargando contactos... ${res.progress.toLocaleString()}`);
+            } else if (res.status === "done") {
+              clearInterval(interval);
+              resolve(res);
+            } else if (res.status === "error") {
+              clearInterval(interval);
+              reject(new Error(res.error));
+            }
+          } catch (e) {
+            clearInterval(interval);
+            reject(e);
+          }
+        }, 3000);
+      });
+    }
+
+    // ── Render ─────────────────────────────────────────────────────────────────
+    function renderTable(groups) {
+      const wrap = document.getElementById("table-wrap");
+      wrap.innerHTML = "";
+
+      groups.forEach((g, gi) => {
+        const hdr = document.createElement("div");
+        hdr.className = "group-header";
+        hdr.innerHTML = `
       <span>Grupo ${gi + 1}</span>
       <span class="group-phone">${g.normalized}</span>
       <span class="group-count">${g.count} contactos</span>
     `;
-    wrap.appendChild(hdr);
+        wrap.appendChild(hdr);
 
-    const table = document.createElement("table");
-    table.innerHTML = `
+        const table = document.createElement("table");
+        table.innerHTML = `
       <thead><tr>
         <th>Principal</th>
         <th>ID</th>
@@ -604,16 +738,16 @@ function renderTable(groups) {
       </tr></thead>
     `;
 
-    const tbody = document.createElement("tbody");
-    g.contacts.forEach((c, ci) => {
-      const tr = document.createElement("tr");
-      tr.id = `row-${gi}-${ci}`;
-      if (c.suggested_primary) tr.classList.add("is-primary");
+        const tbody = document.createElement("tbody");
+        g.contacts.forEach((c, ci) => {
+          const tr = document.createElement("tr");
+          tr.id = `row-${gi}-${ci}`;
+          if (c.suggested_primary) tr.classList.add("is-primary");
 
-      const displayPhone = c.phone || c.whatsapp || c.telefono || "—";
-      const fullName = [c.firstname, c.lastname].filter(Boolean).join(" ") || "—";
+          const displayPhone = c.phone || c.whatsapp || c.telefono || "—";
+          const fullName = [c.firstname, c.lastname].filter(Boolean).join(" ") || "—";
 
-      tr.innerHTML = `
+          tr.innerHTML = `
         <td class="radio-wrap">
           <input type="radio" name="primary-${gi}" value="${c.id}"
             ${c.suggested_primary ? "checked" : ""}
@@ -625,124 +759,125 @@ function renderTable(groups) {
         <td style="font-family:var(--mono);font-size:11px;">${displayPhone}</td>
         <td style="font-family:var(--mono);font-size:11px;">${c.createdate || "—"}</td>
       `;
-      tbody.appendChild(tr);
-    });
+          tbody.appendChild(tr);
+        });
 
-    table.appendChild(tbody);
-    wrap.appendChild(table);
-  });
-}
+        table.appendChild(tbody);
+        wrap.appendChild(table);
+      });
+    }
 
-function onPrimaryChange(gi, radio) {
-  const table = radio.closest("table");
-  table.querySelectorAll("tr").forEach(tr => tr.classList.remove("is-primary"));
-  radio.closest("tr").classList.add("is-primary");
-}
+    function onPrimaryChange(gi, radio) {
+      const table = radio.closest("table");
+      table.querySelectorAll("tr").forEach(tr => tr.classList.remove("is-primary"));
+      radio.closest("tr").classList.add("is-primary");
+    }
 
-// ── Merge ──────────────────────────────────────────────────────────────────
-function buildMergePlan() {
-  return GROUPS.map((g, gi) => {
-    const checked = document.querySelector(`input[name="primary-${gi}"]:checked`);
-    const primary_id = checked?.value;
-    const secondary_ids = g.contacts
-      .map(c => c.id)
-      .filter(id => id !== primary_id);
-    return { normalized: g.normalized, primary_id, secondary_ids };
-  }).filter(g => g.primary_id && g.secondary_ids.length > 0);
-}
+    // ── Merge ──────────────────────────────────────────────────────────────────
+    function buildMergePlan() {
+      return GROUPS.map((g, gi) => {
+        const checked = document.querySelector(`input[name="primary-${gi}"]:checked`);
+        const primary_id = checked?.value;
+        const secondary_ids = g.contacts
+          .map(c => c.id)
+          .filter(id => id !== primary_id);
+        return { normalized: g.normalized, primary_id, secondary_ids };
+      }).filter(g => g.primary_id && g.secondary_ids.length > 0);
+    }
 
-function openMergeModal() {
-  const plan = buildMergePlan();
-  const total = plan.reduce((s, g) => s + g.secondary_ids.length, 0);
+    function openMergeModal() {
+      const plan = buildMergePlan();
+      const total = plan.reduce((s, g) => s + g.secondary_ids.length, 0);
 
-  document.getElementById("modal-body").innerHTML = `
+      document.getElementById("modal-body").innerHTML = `
     Se van a ejecutar <strong>${total} merges</strong> en <strong>${plan.length} grupos</strong>.<br><br>
     Esta acción es <strong>irreversible</strong>. Los contactos secundarios serán absorbidos por el principal y desaparecerán del CRM.<br><br>
     ¿Deseas continuar?
   `;
 
-  document.getElementById("overlay").classList.add("open");
-}
-
-function closeModal() {
-  document.getElementById("overlay").classList.remove("open");
-}
-
-async function executeMerge() {
-  const plan = buildMergePlan();
-  const btn = document.getElementById("btn-confirm-merge");
-  btn.disabled = true;
-  btn.innerHTML = `<span class="spin"></span> &nbsp;Mergeando...`;
-
-  try {
-    const data = await api("POST", "/api/merge/execute", { groups: plan });
-    closeModal();
-    toast(`✓ ${data.total_success} merges exitosos${data.total_failed ? ` · ${data.total_failed} fallidos` : ""}`, data.total_failed ? "error" : "ok");
-
-    if (data.total_success > 0) {
-      // Volver a auditar para reflejar estado actual
-      setTimeout(runAudit, 1500);
+      document.getElementById("overlay").classList.add("open");
     }
-  } catch (e) {
-    toast(e.message, "error");
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = "Confirmar y mergear";
-  }
-}
 
-// ── Export CSV ─────────────────────────────────────────────────────────────
-function exportCSV() {
-  const rows = [["GRUPO","TELEFONO_NORMALIZADO","CONTACT_ID","NOMBRE","EMAIL","PHONE","CREADO","ES_PRINCIPAL"]];
-  GROUPS.forEach((g, gi) => {
-    const checked = document.querySelector(`input[name="primary-${gi}"]:checked`);
-    g.contacts.forEach(c => {
-      rows.push([
-        gi + 1,
-        g.normalized,
-        c.id,
-        [c.firstname, c.lastname].filter(Boolean).join(" "),
-        c.email,
-        c.phone || c.whatsapp || c.telefono,
-        c.createdate,
-        c.id === checked?.value ? 1 : "",
-      ]);
+    function closeModal() {
+      document.getElementById("overlay").classList.remove("open");
+    }
+
+    async function executeMerge() {
+      const plan = buildMergePlan();
+      const btn = document.getElementById("btn-confirm-merge");
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spin"></span> &nbsp;Mergeando...`;
+
+      try {
+        const data = await api("POST", "/api/merge/execute", { groups: plan });
+        closeModal();
+        toast(`✓ ${data.total_success} merges exitosos${data.total_failed ? ` · ${data.total_failed} fallidos` : ""}`, data.total_failed ? "error" : "ok");
+
+        if (data.total_success > 0) {
+          // Volver a auditar para reflejar estado actual
+          setTimeout(runAudit, 1500);
+        }
+      } catch (e) {
+        toast(e.message, "error");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = "Confirmar y mergear";
+      }
+    }
+
+    // ── Export CSV ─────────────────────────────────────────────────────────────
+    function exportCSV() {
+      const rows = [["GRUPO", "TELEFONO_NORMALIZADO", "CONTACT_ID", "NOMBRE", "EMAIL", "PHONE", "CREADO", "ES_PRINCIPAL"]];
+      GROUPS.forEach((g, gi) => {
+        const checked = document.querySelector(`input[name="primary-${gi}"]:checked`);
+        g.contacts.forEach(c => {
+          rows.push([
+            gi + 1,
+            g.normalized,
+            c.id,
+            [c.firstname, c.lastname].filter(Boolean).join(" "),
+            c.email,
+            c.phone || c.whatsapp || c.telefono,
+            c.createdate,
+            c.id === checked?.value ? 1 : "",
+          ]);
+        });
+      });
+
+      const csv = rows.map(r => r.map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `dedup_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // ── UI helpers ─────────────────────────────────────────────────────────────
+    function setState(s) {
+      ["idle", "loading", "empty"].forEach(id => {
+        const el = document.getElementById(`state-${id}`);
+        if (el) el.classList.toggle("active", id === s);
+      });
+    }
+
+    let toastTimer;
+    function toast(msg, type) {
+      const el = document.getElementById("toast");
+      el.textContent = msg;
+      el.className = `toast ${type} show`;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove("show"), 4000);
+    }
+
+    // Click fuera del modal para cerrar
+    document.getElementById("overlay").addEventListener("click", e => {
+      if (e.target === document.getElementById("overlay")) closeModal();
     });
-  });
 
-  const csv = rows.map(r => r.map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement("a");
-  a.href = url;
-  a.download = `dedup_${new Date().toISOString().slice(0,10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-// ── UI helpers ─────────────────────────────────────────────────────────────
-function setState(s) {
-  ["idle","loading","empty"].forEach(id => {
-    const el = document.getElementById(`state-${id}`);
-    if (el) el.classList.toggle("active", id === s);
-  });
-}
-
-let toastTimer;
-function toast(msg, type) {
-  const el = document.getElementById("toast");
-  el.textContent = msg;
-  el.className = `toast ${type} show`;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove("show"), 4000);
-}
-
-// Click fuera del modal para cerrar
-document.getElementById("overlay").addEventListener("click", e => {
-  if (e.target === document.getElementById("overlay")) closeModal();
-});
-
-init();
-</script>
+    init();
+  </script>
 </body>
+
 </html>
