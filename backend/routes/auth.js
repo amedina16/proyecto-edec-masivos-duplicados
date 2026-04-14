@@ -6,11 +6,7 @@ const { query, logActivity } = require("../db");
 
 const router = express.Router();
 
-// Magic tokens de sesión (login recurrente, TTL 15 min)
 const pendingTokens = new Map();
-
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "contacto@th3roots.com,a.medina@th3roots.com")
-  .split(",").map(e => e.trim().toLowerCase());
 
 function getTransport() {
   return nodemailer.createTransport({
@@ -21,18 +17,15 @@ function getTransport() {
   });
 }
 
-// ── POST /api/auth/request { email } ─────────────────────────────────────────
 router.post("/request", async (req, res) => {
   const email = (req.body.email || "").trim().toLowerCase();
   if (!email) return res.status(400).json({ error: "Email requerido" });
 
-  // Verificar que existe en DB (admins están en DB por seed)
   const [user] = await query(
     "SELECT email, role, status FROM users WHERE email=?",
     [email]
   );
 
-  // Respuesta ambigua por seguridad
   if (!user || user.status !== "active") {
     return res.json({ ok: true, message: "Si el email está registrado, recibirás el enlace." });
   }
@@ -41,7 +34,6 @@ router.post("/request", async (req, res) => {
   const expiresAt  = Date.now() + 15 * 60 * 1000;
   pendingTokens.set(magicToken, { email, role: user.role, expiresAt });
 
-  // Limpiar expirados
   for (const [k, v] of pendingTokens.entries()) {
     if (v.expiresAt < Date.now()) pendingTokens.delete(k);
   }
@@ -73,7 +65,6 @@ router.post("/request", async (req, res) => {
   res.json({ ok: true, message: "Enlace enviado. Revisa tu correo." });
 });
 
-// ── GET /api/auth/verify?token=xxx ───────────────────────────────────────────
 router.get("/verify", async (req, res) => {
   const record = pendingTokens.get(req.query.token);
 
@@ -84,7 +75,6 @@ router.get("/verify", async (req, res) => {
 
   pendingTokens.delete(req.query.token);
 
-  // Actualizar last_login
   await query("UPDATE users SET last_login=NOW() WHERE email=?", [record.email]);
   await logActivity(record.email, "login", "magic link");
 
@@ -94,10 +84,9 @@ router.get("/verify", async (req, res) => {
     { expiresIn: "8h" }
   );
 
-  // Redirigir según rol
   res.redirect(`${process.env.APP_URL}/index.html#token=${jwtToken}`);
+});
 
-// ── GET /api/auth/me ──────────────────────────────────────────────────────────
 router.get("/me", async (req, res) => {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) return res.status(401).json({ error: "Token requerido" });
