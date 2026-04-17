@@ -495,22 +495,19 @@
     };
 
     function init() {
-      const payload = Auth.init(); // lee token, verifica expiración, redirige a login si no hay sesión
-      if (!payload) return;        // Auth.init() ya manejó la redirección
+      const payload = Auth.init();
+      if (!payload) return;
 
-      // Mostrar email y rol
-      const emailEl = document.getElementById("user-email");
-      if (emailEl) emailEl.textContent = Auth.getEmail();
+      // Mostrar barra superior
+      document.getElementById("user-bar").style.display = "flex";
+      document.getElementById("user-email").textContent = Auth.getEmail();
+      const badge = document.getElementById("role-badge");
+      badge.textContent = Auth.getRole();
+      badge.className = `role-badge role-${Auth.getRole()}`;
 
-      // Mostrar/ocultar nav de admin
-      const navAdmin = document.getElementById("nav-admin");
-      if (navAdmin) navAdmin.style.display = Auth.can("admin") ? "inline" : "none";
-
-      // Deshabilitar botones según permisos (sin redirigir)
-      if (!Auth.can("merge")) {
-        const btnMerge = document.getElementById("btn-merge");
-        if (btnMerge) { btnMerge.disabled = true; btnMerge.title = "Sin permiso"; }
-      }
+      // Mostrar cards según rol
+      const access = ROLE_ACCESS[Auth.getRole()] || [];
+      renderCards(access);
     }
 
     function renderCards(access) {
@@ -538,7 +535,6 @@
     }
 
     function logout() { Auth.logout(); }
-
 
     init();
   </script>
