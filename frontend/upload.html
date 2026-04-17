@@ -758,22 +758,9 @@
     // ── Auth ──────────────────────────────────────────────────────────────────────
     let TOKEN = null;
     function init() {
-      const payload = Auth.init(); // lee token, verifica expiración, redirige a login si no hay sesión
-      if (!payload) return;        // Auth.init() ya manejó la redirección
-
-      // Mostrar email y rol
-      const emailEl = document.getElementById("user-email");
-      if (emailEl) emailEl.textContent = Auth.getEmail();
-
-      // Mostrar/ocultar nav de admin
-      const navAdmin = document.getElementById("nav-admin");
-      if (navAdmin) navAdmin.style.display = Auth.can("admin") ? "inline" : "none";
-
-      // Deshabilitar botones según permisos (sin redirigir)
-      if (!Auth.can("merge")) {
-        const btnMerge = document.getElementById("btn-merge");
-        if (btnMerge) { btnMerge.disabled = true; btnMerge.title = "Sin permiso"; }
-      }
+      const payload = Auth.init();
+      if (!payload) return;
+      TOKEN = Auth.getToken(); // ← esta línea faltaba
     }
 
 
@@ -784,12 +771,12 @@
     async function api(method, path, body, isFormData = false) {
       const opts = {
         method,
-        headers: { Authorization: `Bearer ${TOKEN}` },
+        headers: { Authorization: `Bearer ${Auth.getToken()}` }, // ← usar Auth.getToken() en lugar de TOKEN
       };
       if (body && !isFormData) { opts.headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(body); }
       else if (body) opts.body = body;
       const res = await fetch(path, opts);
-      if (res.status === 401) { logout(); return; }
+      if (res.status === 401) { Auth.logout(); return; }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error del servidor");
       return data;
