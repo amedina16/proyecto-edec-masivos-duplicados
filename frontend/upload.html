@@ -9,6 +9,8 @@
   <link
     href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap"
     rel="stylesheet">
+  <script src="/auth-shared.js"></script>
+
   <style>
     *,
     *::before,
@@ -756,37 +758,28 @@
     // ── Auth ──────────────────────────────────────────────────────────────────────
     let TOKEN = null;
     function init() {
-      const hash = location.hash.slice(1);
-      const params = new URLSearchParams(hash);
-      const t = params.get("token");
+      const payload = Auth.init(); // lee token, verifica expiración, redirige a login si no hay sesión
+      if (!payload) return;        // Auth.init() ya manejó la redirección
 
-      if (t) {
-        TOKEN = t;
-        localStorage.setItem("hs_dedup_token", t);
-        history.replaceState(null, "", location.pathname);
-      } else {
-        TOKEN = localStorage.getItem("hs_dedup_token");
+      // Mostrar email y rol
+      const emailEl = document.getElementById("user-email");
+      if (emailEl) emailEl.textContent = Auth.getEmail();
+
+      // Mostrar/ocultar nav de admin
+      const navAdmin = document.getElementById("nav-admin");
+      if (navAdmin) navAdmin.style.display = Auth.can("admin") ? "inline" : "none";
+
+      // Deshabilitar botones según permisos (sin redirigir)
+      if (!Auth.can("merge")) {
+        const btnMerge = document.getElementById("btn-merge");
+        if (btnMerge) { btnMerge.disabled = true; btnMerge.title = "Sin permiso"; }
       }
-
-      if (!TOKEN) return location.href = "/login.html";
-
-      try {
-        const p = JSON.parse(atob(TOKEN.split(".")[1]));
-
-        if (p.exp * 1000 < Date.now()) {
-          localStorage.removeItem("hs_dedup_token");
-          return location.href = "/login.html";
-        }
-
-        // Redirigir según rol
-        if (p.role === "dedup") return location.href = "/dashboard.html";
-
-      } catch { location.href = "/login.html"; }
     }
 
 
 
-    function logout() { localStorage.removeItem("hs_dedup_token"); location.href = "/login.html"; }
+    function logout() { Auth.logout(); }
+
 
     async function api(method, path, body, isFormData = false) {
       const opts = {

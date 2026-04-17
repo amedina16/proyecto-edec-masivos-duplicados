@@ -423,6 +423,8 @@
       border-color: #86efac
     }
   </style>
+  <script src="/auth-shared.js"></script>
+
 </head>
 
 <body>
@@ -493,56 +495,21 @@
     };
 
     function init() {
-      // Leer token del hash (magic link) o localStorage
-      const hash = location.hash.slice(1);
-      const params = new URLSearchParams(hash);
-      const t = params.get("token");
+      const payload = Auth.init(); // lee token, verifica expiración, redirige a login si no hay sesión
+      if (!payload) return;        // Auth.init() ya manejó la redirección
 
-      if (t) {
-        TOKEN = t;
-        localStorage.setItem("hs_dedup_token", t);
-        history.replaceState(null, "", location.pathname);
-      } else {
-        TOKEN = localStorage.getItem("hs_dedup_token");
-      }
+      // Mostrar email y rol
+      const emailEl = document.getElementById("user-email");
+      if (emailEl) emailEl.textContent = Auth.getEmail();
 
-      if (!TOKEN) {
-        document.getElementById("loading-text").textContent = "Sin sesión activa";
-        return setTimeout(() => location.href = "/login.html", 800);
-      }
+      // Mostrar/ocultar nav de admin
+      const navAdmin = document.getElementById("nav-admin");
+      if (navAdmin) navAdmin.style.display = Auth.can("admin") ? "inline" : "none";
 
-      try {
-        const payload = JSON.parse(atob(TOKEN.split(".")[1]));
-
-        if (payload.exp * 1000 < Date.now()) {
-          localStorage.removeItem("hs_dedup_token");
-          document.getElementById("loading-text").textContent = "Sesión expirada";
-          return setTimeout(() => location.href = "/login.html", 800);
-        }
-
-        USER_ROLE = payload.role || "dedup";
-
-        // Mostrar barra superior
-        document.getElementById("user-bar").style.display = "flex";
-        document.getElementById("user-email").textContent = payload.email;
-        const badge = document.getElementById("role-badge");
-        badge.textContent = USER_ROLE;
-        badge.className = `role-badge role-${USER_ROLE}`;
-
-        // Si solo tiene acceso a un módulo, redirigir directamente
-        const access = ROLE_ACCESS[USER_ROLE] || [];
-        if (access.length === 1) {
-          document.getElementById("loading-text").textContent = "Redirigiendo...";
-          return setTimeout(() => location.href = CARDS[access[0]].href, 400);
-        }
-
-        // Tiene acceso a más de un módulo → mostrar cards
-        renderCards(access);
-
-      } catch {
-        localStorage.removeItem("hs_dedup_token");
-        document.getElementById("loading-text").textContent = "Token inválido";
-        setTimeout(() => location.href = "/login.html", 800);
+      // Deshabilitar botones según permisos (sin redirigir)
+      if (!Auth.can("merge")) {
+        const btnMerge = document.getElementById("btn-merge");
+        if (btnMerge) { btnMerge.disabled = true; btnMerge.title = "Sin permiso"; }
       }
     }
 
@@ -570,10 +537,8 @@
       document.getElementById("page-home").style.display = "flex";
     }
 
-    function logout() {
-      localStorage.removeItem("hs_dedup_token");
-      location.href = "/login.html";
-    }
+    function logout() { Auth.logout(); }
+
 
     init();
   </script>
