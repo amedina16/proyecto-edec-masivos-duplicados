@@ -125,12 +125,17 @@ router.post("/parse", upload.single("file"), (req, res) => {
       const l = lower(col);
       if      (l.includes("nombre") && !l.includes("apellido")) autoMap[col] = "firstname";
       else if (l.includes("apellido") || l.includes("lastname"))autoMap[col] = "lastname";
-      else if (l.includes("telef") || l.includes("phone") || l.includes("cel") || l.includes("numero")) autoMap[col] = "phone";
+      else if (l.includes("telef") || l.includes("phone") || l.includes("cel") || l.includes("Número de teléfono")) autoMap[col] = "phone";
       else if (l.includes("email") || l.includes("correo"))     autoMap[col] = "email";
       else if (l.includes("campus"))                             autoMap[col] = "campus";
       else if (l.includes("ciclo"))                              autoMap[col] = "ciclo";
       else if (l.includes("año") || l.includes("anio") || l.includes("year")) autoMap[col] = "ano";
-      else if (l.includes("whatsapp"))                           autoMap[col] = "hs_whatsapp_phone";
+      else if (l.includes("Estatus"))                           autoMap[col] = "status";
+      else if (l.includes("building blocks")) autoMap[col] = "Origen (building blocks)";
+      else if (l.includes("Estado de Lead 2023"))  autoMap[col] = "Estado de Lead 2023";
+      else if (l.includes("Nivel"))  autoMap[col] = "Nivel";
+      else if (l.includes("Programa"))  autoMap[col] = "Programa de interés";
+      else if (l.includes("Escuela de Procedencia"))  autoMap[col] = "Escuela de Procedencia";
     }
 
     res.json({ columns, preview, autoMap, total_rows: rows.length });
