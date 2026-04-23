@@ -10,7 +10,6 @@
     href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap"
     rel="stylesheet">
   <script src="/auth-shared.js"></script>
-
   <style>
     *,
     *::before,
@@ -132,7 +131,6 @@
       width: 100%
     }
 
-    /* Steps indicator */
     .steps {
       display: flex;
       gap: 0;
@@ -183,7 +181,6 @@
       flex-shrink: 0
     }
 
-    /* Panels */
     .panel {
       display: none
     }
@@ -219,7 +216,6 @@
       flex-shrink: 0
     }
 
-    /* Drop zone */
     .dropzone {
       border: 2px dashed var(--border);
       border-radius: 2px;
@@ -252,7 +248,6 @@
       color: var(--ink3)
     }
 
-    /* Mapping table */
     .map-table {
       width: 100%;
       border-collapse: collapse
@@ -316,7 +311,6 @@
       border-radius: 2px
     }
 
-    /* Results table */
     .results-table {
       width: 100%;
       border-collapse: collapse;
@@ -365,7 +359,6 @@
       border: 1px solid var(--border)
     }
 
-    /* Status badge */
     .badge {
       display: inline-block;
       font-family: var(--mono);
@@ -407,7 +400,6 @@
       border-color: var(--border)
     }
 
-    /* Stats row */
     .stats {
       display: flex;
       gap: 12px;
@@ -448,7 +440,6 @@
       color: var(--red)
     }
 
-    /* Buttons */
     .btn {
       font-family: var(--mono);
       font-size: 11px;
@@ -505,7 +496,6 @@
       margin-top: 20px
     }
 
-    /* Progress */
     .progress-wrap {
       height: 4px;
       background: var(--border);
@@ -540,7 +530,6 @@
       }
     }
 
-    /* Toast */
     .toast {
       position: fixed;
       bottom: 24px;
@@ -573,7 +562,6 @@
       color: var(--red)
     }
 
-    /* Checkbox forzar duplicado */
     input[type=checkbox] {
       width: 15px;
       height: 15px;
@@ -589,6 +577,50 @@
       border: 1px solid var(--border);
       border-radius: 2px;
       color: var(--ink3)
+    }
+
+    /* Owner selector */
+    .owner-display {
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 10px 12px;
+      background: var(--paper);
+      border: 1.5px solid var(--border);
+      border-radius: 2px;
+      color: var(--ink2);
+      display: flex;
+      align-items: center;
+      gap: 8px
+    }
+
+    .owner-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #16a34a;
+      flex-shrink: 0
+    }
+
+    .owner-id {
+      font-size: 10px;
+      color: var(--ink3);
+      margin-left: auto
+    }
+
+    select.owner-sel {
+      width: 100%;
+      font-family: var(--mono);
+      font-size: 13px;
+      padding: 9px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 2px;
+      background: var(--paper);
+      color: var(--ink);
+      outline: none
+    }
+
+    select.owner-sel:focus {
+      border-color: var(--blue)
     }
   </style>
 </head>
@@ -607,7 +639,6 @@
     </header>
 
     <div class="main">
-      <!-- Steps -->
       <div class="steps">
         <div class="step active" id="s1">
           <div class="step-num">1</div>Subir archivo
@@ -623,7 +654,7 @@
         </div>
       </div>
 
-      <!-- PANEL 1: Upload -->
+      <!-- PANEL 1 -->
       <div class="panel active" id="panel1">
         <div class="card">
           <div class="card-title">Selecciona el archivo</div>
@@ -643,7 +674,7 @@
         </div>
       </div>
 
-      <!-- PANEL 2: Mapeo -->
+      <!-- PANEL 2 -->
       <div class="panel" id="panel2">
         <div class="card">
           <div class="card-title">Mapea las columnas del archivo a propiedades de HubSpot</div>
@@ -662,6 +693,20 @@
             <tbody id="map-tbody"></tbody>
           </table>
         </div>
+
+        <!-- Propietario del contacto -->
+        <div class="card" id="owner-card">
+          <div class="card-title">Propietario del contacto</div>
+          <p style="font-size:12px;color:var(--ink3);margin-bottom:14px;line-height:1.6" id="owner-note">
+            Cargando usuarios de HubSpot...
+          </p>
+          <div id="owner-field">
+            <div class="progress-wrap">
+              <div class="progress-bar indeterminate"></div>
+            </div>
+          </div>
+        </div>
+
         <div class="card">
           <div class="card-title">Nombre del lote</div>
           <input type="text" id="batch-name" placeholder="Ej: Leads enero 2025 — Campus Monterrey"
@@ -673,7 +718,7 @@
         </div>
       </div>
 
-      <!-- PANEL 3: Validación -->
+      <!-- PANEL 3 -->
       <div class="panel" id="panel3">
         <div id="p3-validating" style="text-align:center;padding:48px 0">
           <div class="progress-wrap" style="width:280px;margin:0 auto 16px">
@@ -688,7 +733,7 @@
           <div class="card">
             <div class="card-title">Resultados de validación</div>
             <div class="results-wrap">
-              <table class="results-table" id="results-table">
+              <table class="results-table">
                 <thead>
                   <tr>
                     <th>#</th>
@@ -710,12 +755,11 @@
         </div>
       </div>
 
-      <!-- PANEL 4: Confirmación y push -->
+      <!-- PANEL 4 -->
       <div class="panel" id="panel4">
         <div class="card">
           <div class="card-title">Confirmar envío a HubSpot</div>
           <div id="confirm-summary" style="font-size:13px;color:var(--ink2);line-height:1.7;margin-bottom:20px"></div>
-
           <div id="dup-section" style="display:none">
             <div
               style="font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--ink3);margin-bottom:10px">
@@ -740,9 +784,7 @@
         </div>
         <div class="btn-row">
           <button class="btn btn-ghost" onclick="goStep(3)">← Atrás</button>
-          <button class="btn btn-success" id="btn-push" onclick="executePush()">
-            Enviar a HubSpot →
-          </button>
+          <button class="btn btn-success" id="btn-push" onclick="executePush()">Enviar a HubSpot →</button>
         </div>
         <div class="progress-wrap" id="p4-progress" style="display:none">
           <div class="progress-bar indeterminate"></div>
@@ -755,24 +797,27 @@
   <div class="toast" id="toast"></div>
 
   <script>
-    // ── Auth ──────────────────────────────────────────────────────────────────────
     let TOKEN = null;
-    function init() {
+    let currentFile = null;
+    let parsedData = null;
+    let hsPropList = [];
+    let batchId = null;
+    let batchData = null;
+    let pollTimer = null;
+    let selectedOwnerId = null;
+
+    // ── Auth ──────────────────────────────────────────────────────────────────
+    async function init() {
       const payload = Auth.init();
       if (!payload) return;
-      TOKEN = Auth.getToken(); // ← esta línea faltaba
+      TOKEN = Auth.getToken();
+      await loadOwnerSelector();
     }
-
-
 
     function logout() { Auth.logout(); }
 
-
     async function api(method, path, body, isFormData = false) {
-      const opts = {
-        method,
-        headers: { Authorization: `Bearer ${Auth.getToken()}` }, // ← usar Auth.getToken() en lugar de TOKEN
-      };
+      const opts = { method, headers: { Authorization: `Bearer ${Auth.getToken()}` } };
       if (body && !isFormData) { opts.headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(body); }
       else if (body) opts.body = body;
       const res = await fetch(path, opts);
@@ -782,15 +827,52 @@
       return data;
     }
 
-    // ── State ─────────────────────────────────────────────────────────────────────
-    let currentFile = null;
-    let parsedData = null;
-    let hsPropList = [];
-    let batchId = null;
-    let batchData = null;
-    let pollTimer = null;
+    // ── Owner selector ────────────────────────────────────────────────────────
+    async function loadOwnerSelector() {
+      const isAdmin = Auth.can("admin");
+      const noteEl = document.getElementById("owner-note");
+      const fieldEl = document.getElementById("owner-field");
 
-    // ── Steps ─────────────────────────────────────────────────────────────────────
+      if (isAdmin) {
+        try {
+          const owners = await api("GET", "/api/upload/hs-owners");
+          noteEl.textContent = "Como administrador puedes asignar cualquier propietario.";
+
+          const sel = document.createElement("select");
+          sel.className = "owner-sel";
+          sel.innerHTML = `<option value="">— Sin propietario asignado —</option>` +
+            owners.map(o => `<option value="${o.id}">${o.name} &lt;${o.email}&gt;</option>`).join("");
+
+          const myMatch = owners.find(o => o.email.toLowerCase() === Auth.getEmail().toLowerCase());
+          if (myMatch) { sel.value = myMatch.id; selectedOwnerId = myMatch.id; }
+
+          sel.addEventListener("change", () => { selectedOwnerId = sel.value || null; });
+          fieldEl.innerHTML = "";
+          fieldEl.appendChild(sel);
+        } catch {
+          noteEl.textContent = "No se pudo cargar la lista de usuarios de HubSpot.";
+          fieldEl.innerHTML = "";
+        }
+      } else {
+        try {
+          const me = await api("GET", "/api/upload/my-owner-id");
+          selectedOwnerId = me.id;
+          noteEl.textContent = "Los contactos se asignarán a tu usuario automáticamente.";
+          fieldEl.innerHTML = `
+            <div class="owner-display">
+              <span class="owner-dot"></span>
+              ${me.name} &lt;${me.email}&gt;
+              <span class="owner-id">ID: ${me.id}</span>
+            </div>`;
+        } catch {
+          noteEl.textContent = "Tu usuario no fue encontrado en HubSpot — los contactos se crearán sin propietario.";
+          fieldEl.innerHTML = "";
+          selectedOwnerId = null;
+        }
+      }
+    }
+
+    // ── Steps ─────────────────────────────────────────────────────────────────
     function goStep(n) {
       [1, 2, 3, 4].forEach(i => {
         document.getElementById(`panel${i}`).classList.toggle("active", i === n);
@@ -799,9 +881,10 @@
         if (i === n) s.classList.add("active");
         else if (i < n) s.classList.add("done");
       });
+      if (n === 4) buildConfirmPanel();
     }
 
-    // ── Step 1: File ──────────────────────────────────────────────────────────────
+    // ── Step 1 ────────────────────────────────────────────────────────────────
     function handleDrop(e) {
       e.preventDefault();
       document.getElementById("dropzone").classList.remove("drag");
@@ -814,17 +897,14 @@
       currentFile = file;
       document.getElementById("p1-progress").style.display = "block";
       document.getElementById("p1-msg").textContent = "Analizando archivo...";
-
       try {
         const fd = new FormData();
         fd.append("file", file);
         parsedData = await api("POST", "/api/upload/parse", fd, true);
         hsPropList = await api("GET", "/api/upload/hs-properties");
-
         document.getElementById("p1-progress").style.display = "none";
         document.getElementById("p1-msg").textContent =
           `✓ ${file.name} · ${parsedData.total_rows.toLocaleString()} filas · ${parsedData.columns.length} columnas`;
-
         buildMappingTable();
         document.getElementById("batch-name").value = file.name.replace(/\.[^.]+$/, "");
         goStep(2);
@@ -835,79 +915,49 @@
       }
     }
 
-    // ── Step 2: Mapping ───────────────────────────────────────────────────────────
+    // ── Step 2 ────────────────────────────────────────────────────────────────
     function buildMappingTable() {
       const tbody = document.getElementById("map-tbody");
       tbody.innerHTML = "";
-
-      // Agrupar propiedades por group
       const groups = {};
-      hsPropList.forEach(p => {
-        const g = p.group || "other";
-        if (!groups[g]) groups[g] = [];
-        groups[g].push(p);
-      });
-
+      hsPropList.forEach(p => { const g = p.group || "other"; if (!groups[g]) groups[g] = []; groups[g].push(p); });
       const groupLabels = {
-        contactinformation: "Información de contacto",
-        email_information: "Email",
-        social_media: "Redes sociales",
-        lead_intelligence: "Inteligencia de leads",
-        conversion_information: "Conversión",
-        sales_properties: "Ventas",
+        contactinformation: "Información de contacto", email_information: "Email",
+        social_media: "Redes sociales", lead_intelligence: "Inteligencia de leads",
+        conversion_information: "Conversión", sales_properties: "Ventas",
       };
-
       const hsOpts = `<option value="">— Ignorar columna —</option>` +
-        Object.entries(groups).map(([g, props]) => `
-      <optgroup label="${groupLabels[g] || g}">
-        ${props.map(p =>
-          `<option value="${p.value}" ${p.required ? 'style="font-weight:600"' : ""}>
-            ${p.label}${p.required ? " *" : ""}
-          </option>`
-        ).join("")}
-      </optgroup>
-    `).join("");
+        Object.entries(groups).map(([g, props]) =>
+          `<optgroup label="${groupLabels[g] || g}">${props.map(p =>
+            `<option value="${p.value}">${p.label}</option>`
+          ).join("")}</optgroup>`
+        ).join("");
 
       parsedData.columns.forEach(col => {
         const preview = parsedData.preview.map(r => r[col]).filter(Boolean)[0] || "—";
         const autoVal = parsedData.autoMap[col] || "";
         const isReq = ["firstname", "phone"].includes(autoVal);
-
         const tr = document.createElement("tr");
         tr.innerHTML = `
-      <td style="font-family:var(--mono);font-size:12px">
-        ${col} ${isReq ? '<span class="required-badge">requerido</span>' : ""}
-      </td>
-      <td>
-        <select data-col="${col}" onchange="checkRequired()">
-          ${hsOpts}
-        </select>
-      </td>
-      <td><span class="preview-val">${preview}</span></td>
-    `;
+          <td style="font-family:var(--mono);font-size:12px">${col} ${isReq ? '<span class="required-badge">requerido</span>' : ""}</td>
+          <td><select data-col="${col}">${hsOpts}</select></td>
+          <td><span class="preview-val">${preview}</span></td>`;
         tbody.appendChild(tr);
-
-        const sel = tr.querySelector("select");
-        if (autoVal) sel.value = autoVal;
+        if (autoVal) tr.querySelector("select").value = autoVal;
       });
     }
 
-    function checkRequired() { } // podría validar en tiempo real
-
     function getMappings() {
-      const sels = document.querySelectorAll("#map-tbody select");
       const map = {};
-      sels.forEach(s => { if (s.value) map[s.dataset.col] = s.value; });
+      document.querySelectorAll("#map-tbody select").forEach(s => { if (s.value) map[s.dataset.col] = s.value; });
       return map;
     }
 
-    // ── Step 3: Submit & Poll ─────────────────────────────────────────────────────
+    // ── Step 3 ────────────────────────────────────────────────────────────────
     async function submitBatch() {
       const mappings = getMappings();
-
       const hasName = Object.values(mappings).some(v => ["firstname", "lastname"].includes(v));
       const hasPhone = Object.values(mappings).some(v => ["phone", "mobilephone", "hs_whatsapp_phone"].includes(v));
-
       if (!hasName) return toast("Mapea al menos una columna al nombre del contacto.", "error");
       if (!hasPhone) return toast("Mapea al menos una columna a un campo de teléfono.", "error");
 
@@ -920,11 +970,10 @@
         fd.append("file", currentFile);
         fd.append("mappings", JSON.stringify(mappings));
         fd.append("batch_name", document.getElementById("batch-name").value);
+        if (selectedOwnerId) fd.append("owner_id", selectedOwnerId);
 
         const { batchId: bid } = await api("POST", "/api/upload/submit", fd, true);
         batchId = bid;
-
-        // Poll hasta que status sea 'ready'
         pollBatchStatus();
       } catch (e) {
         toast(e.message, "error");
@@ -952,81 +1001,66 @@
     function renderResults(data) {
       document.getElementById("p3-validating").style.display = "none";
       document.getElementById("p3-results").style.display = "block";
-
       const b = data.batch;
       const errRows = data.rows.filter(r => r.status === "error").length;
-
       document.getElementById("stats-row").innerHTML = `
-    <div class="stat"><div class="stat-val">${b.total_rows}</div><div class="stat-lbl">Total filas</div></div>
-    <div class="stat green"><div class="stat-val">${b.clean_rows}</div><div class="stat-lbl">Limpios</div></div>
-    <div class="stat amber"><div class="stat-val">${b.duplicate_rows}</div><div class="stat-lbl">Duplicados</div></div>
-    <div class="stat red"><div class="stat-val">${errRows}</div><div class="stat-lbl">Con error</div></div>
-  `;
-
+        <div class="stat"><div class="stat-val">${b.total_rows}</div><div class="stat-lbl">Total filas</div></div>
+        <div class="stat green"><div class="stat-val">${b.clean_rows}</div><div class="stat-lbl">Limpios</div></div>
+        <div class="stat amber"><div class="stat-val">${b.duplicate_rows}</div><div class="stat-lbl">Duplicados</div></div>
+        <div class="stat red"><div class="stat-val">${errRows}</div><div class="stat-lbl">Con error</div></div>`;
       const tbody = document.getElementById("results-tbody");
       tbody.innerHTML = "";
       data.rows.forEach(r => {
         const tr = document.createElement("tr");
         tr.className = r.status;
         tr.innerHTML = `
-      <td style="font-family:var(--mono);font-size:11px">${r.row_index}</td>
-      <td>${r.nombre || "—"}</td>
-      <td style="font-family:var(--mono);font-size:11px">${r.telefono}</td>
-      <td>${r.email || "—"}</td>
-      <td><span class="badge badge-${r.status}">${r.status}</span></td>
-      <td style="font-family:var(--mono);font-size:11px">
-        ${r.duplicate_of_hs ? `<span class="chip">${r.duplicate_of_hs}</span> en ${r.duplicate_field}` : "—"}
-      </td>
-    `;
+          <td style="font-family:var(--mono);font-size:11px">${r.row_index}</td>
+          <td>${r.nombre || "—"}</td>
+          <td style="font-family:var(--mono);font-size:11px">${r.telefono}</td>
+          <td>${r.email || "—"}</td>
+          <td><span class="badge badge-${r.status}">${r.status}</span></td>
+          <td style="font-family:var(--mono);font-size:11px">
+            ${r.duplicate_of_hs ? `<span class="chip">${r.duplicate_of_hs}</span> en ${r.duplicate_field}` : "—"}
+          </td>`;
         tbody.appendChild(tr);
       });
     }
 
-    // ── Step 4: Confirm & Push ────────────────────────────────────────────────────
-    function goStep4() { goStep(4); buildConfirmPanel(); }
-
+    // ── Step 4 ────────────────────────────────────────────────────────────────
     function buildConfirmPanel() {
       if (!batchData) return;
       const b = batchData.batch;
       const dups = batchData.rows.filter(r => r.status === "duplicate");
-
       document.getElementById("confirm-summary").innerHTML = `
-    Se enviarán a HubSpot <strong>${b.clean_rows} contactos limpios</strong>.<br>
-    Hay <strong>${b.duplicate_rows} duplicados</strong> que no se enviarán, salvo que los marques abajo.
-  `;
-
-      const dupSection = document.getElementById("dup-section");
+        Se enviarán a HubSpot <strong>${b.clean_rows} contactos limpios</strong>.<br>
+        Hay <strong>${b.duplicate_rows} duplicados</strong> que no se enviarán, salvo que los marques abajo.`;
       const dupTbody = document.getElementById("dup-tbody");
       dupTbody.innerHTML = "";
-
       if (dups.length > 0) {
-        dupSection.style.display = "block";
+        document.getElementById("dup-section").style.display = "block";
         dups.forEach(r => {
           const tr = document.createElement("tr");
           tr.className = "duplicate";
           tr.innerHTML = `
-        <td style="text-align:center"><input type="checkbox" data-row-id="${r.id}"></td>
-        <td style="font-family:var(--mono);font-size:11px">${r.row_index}</td>
-        <td>${r.nombre || "—"}</td>
-        <td style="font-family:var(--mono);font-size:11px">${r.telefono}</td>
-        <td style="font-family:var(--mono);font-size:11px"><span class="chip">${r.duplicate_of_hs}</span></td>
-        <td style="font-family:var(--mono);font-size:11px">${r.duplicate_field}</td>
-      `;
+            <td style="text-align:center"><input type="checkbox" data-row-id="${r.id}"></td>
+            <td style="font-family:var(--mono);font-size:11px">${r.row_index}</td>
+            <td>${r.nombre || "—"}</td>
+            <td style="font-family:var(--mono);font-size:11px">${r.telefono}</td>
+            <td style="font-family:var(--mono);font-size:11px"><span class="chip">${r.duplicate_of_hs}</span></td>
+            <td style="font-family:var(--mono);font-size:11px">${r.duplicate_field}</td>`;
           dupTbody.appendChild(tr);
         });
       } else {
-        dupSection.style.display = "none";
+        document.getElementById("dup-section").style.display = "none";
       }
     }
 
     async function executePush() {
       const forceIds = [...document.querySelectorAll("#dup-tbody input[type=checkbox]:checked")]
         .map(cb => parseInt(cb.dataset.rowId));
-
       document.getElementById("btn-push").disabled = true;
       document.getElementById("p4-progress").style.display = "block";
       document.getElementById("p4-result").textContent = "";
-
       try {
         const data = await api("POST", `/api/upload/batch/${batchId}/push`, { force_row_ids: forceIds });
         document.getElementById("p4-progress").style.display = "none";
@@ -1042,14 +1076,7 @@
       }
     }
 
-    // Sobreescribir goStep para buildConfirmPanel en step 4
-    const _goStep = goStep;
-    window.goStep = function (n) {
-      _goStep(n);
-      if (n === 4) buildConfirmPanel();
-    };
-
-    // ── Toast ─────────────────────────────────────────────────────────────────────
+    // ── Toast ─────────────────────────────────────────────────────────────────
     let toastTimer;
     function toast(msg, type) {
       const el = document.getElementById("toast");
