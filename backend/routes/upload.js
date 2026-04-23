@@ -23,14 +23,13 @@ router.get("/hs-properties", async (req, res) => {
       "hs_object_id","hs_created_by_user_id","hs_updated_by_user_id",
       "hs_is_unworked","hs_sequences_actively_enrolled_count",
       "hs_all_contact_vids","hs_calculated_merged_vids","hs_merged_object_ids",
-      "hs_prev_calculated_merged_vids","hs_calculated_phone_number",
-      "hs_email_quarantined",
+      "hs_prev_calculated_merged_vids","hs_calculated_phone_number","hs_email_quarantined",
     ]);
     const props = data
       .filter(p => !p.readOnlyValue && !p.calculated && !excluded.has(p.name) && p.fieldType !== "calculation_equation")
       .map(p => ({ value: p.name, label: p.label, group: p.groupName, type: p.fieldType }))
       .sort((a, b) => {
-        const priority = ["firstname","lastname","Número de teléfono","mobilephone","hs_whatsapp_phone","email"];
+        const priority = ["firstname","lastname","phone","mobilephone","hs_whatsapp_phone","email"];
         const ai = priority.indexOf(a.value), bi = priority.indexOf(b.value);
         if (ai !== -1 && bi !== -1) return ai - bi;
         if (ai !== -1) return -1;
@@ -42,7 +41,7 @@ router.get("/hs-properties", async (req, res) => {
     res.json([
       { value: "firstname",         label: "Nombre",   group: "contactinformation" },
       { value: "lastname",          label: "Apellido",  group: "contactinformation" },
-      { value: "phone",             label: "Número de teléfono",  group: "contactinformation" },
+      { value: "phone",             label: "Teléfono",  group: "contactinformation" },
       { value: "mobilephone",       label: "Móvil",     group: "contactinformation" },
       { value: "hs_whatsapp_phone", label: "WhatsApp",  group: "contactinformation" },
       { value: "email",             label: "Email",     group: "contactinformation" },
@@ -51,7 +50,7 @@ router.get("/hs-properties", async (req, res) => {
 });
 
 // ── GET /api/upload/hs-owners ─────────────────────────────────────────────────
-// Devuelve usuarios de HubSpot con id y email para el selector de propietario
+// Usa /crm/v3/owners — estos IDs son los válidos para hubspot_owner_id
 router.get("/hs-owners", async (req, res) => {
   const hsToken = process.env.HUBSPOT_TOKEN;
   try {
@@ -59,7 +58,7 @@ router.get("/hs-owners", async (req, res) => {
     let after  = undefined;
     do {
       const params = { limit: 100, ...(after && { after }) };
-      const { data } = await axios.get(`${HS_BASE}/settings/v3/users/`, {
+      const { data } = await axios.get(`${HS_BASE}/crm/v3/owners`, {
         headers: { Authorization: `Bearer ${hsToken}` },
         params,
       });
@@ -68,38 +67,42 @@ router.get("/hs-owners", async (req, res) => {
     } while (after);
 
     const list = owners
-      .filter(u => u.email)
-      .map(u => ({
-        id:    u.id,
-        email: u.email,
-        name:  [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email,
+      .filter(o => o.email)
+      .map(o => ({
+        id:    String(o.id),
+        email: o.email,
+        name:  [o.firstName, o.lastName].filter(Boolean).join(" ") || o.email,
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
 
     res.json(list);
   } catch (err) {
-    res.status(500).json({ error: "No se pudo obtener usuarios de HubSpot: " + err.message });
+    res.status(500).json({ error: "No se pudo obtener owners de HubSpot: " + err.message });
   }
 });
 
 // ── GET /api/upload/my-owner-id ───────────────────────────────────────────────
-// Devuelve el hubspot owner id del usuario autenticado (por email)
+// Busca el owner id del usuario autenticado en /crm/v3/owners por email
 router.get("/my-owner-id", async (req, res) => {
-  const hsToken  = process.env.HUBSPOT_TOKEN;
-  const myEmail  = req.user.email;
+  const hsToken = process.env.HUBSPOT_TOKEN;
+  const myEmail = req.user.email;
   try {
     let after = undefined;
     do {
       const params = { limit: 100, ...(after && { after }) };
-      const { data } = await axios.get(`${HS_BASE}/settings/v3/users/`, {
+      const { data } = await axios.get(`${HS_BASE}/crm/v3/owners`, {
         headers: { Authorization: `Bearer ${hsToken}` },
         params,
       });
-      const found = data.results.find(u => u.email?.toLowerCase() === myEmail.toLowerCase());
-      if (found) return res.json({ id: found.id, email: found.email, name: [found.firstName, found.lastName].filter(Boolean).join(" ") });
+      const found = data.results.find(o => o.email?.toLowerCase() === myEmail.toLowerCase());
+      if (found) return res.json({
+        id:    String(found.id),
+        email: found.email,
+        name:  [found.firstName, found.lastName].filter(Boolean).join(" ") || found.email,
+      });
       after = data.paging?.next?.after;
     } while (after);
-    res.status(404).json({ error: "Usuario no encontrado en HubSpot" });
+    res.status(404).json({ error: "Usuario no encontrado en HubSpot owners" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -123,19 +126,14 @@ router.post("/parse", upload.single("file"), (req, res) => {
     const lower = s => s.toLowerCase().replace(/[\s_\-()]/g, "");
     for (const col of columns) {
       const l = lower(col);
-      if      (l.includes("nombre") && !l.includes("apellido")) autoMap[col] = "firstname";
-      else if (l.includes("apellido") || l.includes("lastname"))autoMap[col] = "lastname";
-      else if (l.includes("telef") || l.includes("phone") || l.includes("cel") || l.includes("Número de teléfono")) autoMap[col] = "phone";
-      else if (l.includes("email") || l.includes("correo"))     autoMap[col] = "email";
-      else if (l.includes("campus"))                             autoMap[col] = "campus";
-      else if (l.includes("ciclo"))                              autoMap[col] = "ciclo";
+      if      (l.includes("nombre") && !l.includes("apellido"))  autoMap[col] = "firstname";
+      else if (l.includes("apellido") || l.includes("lastname"))  autoMap[col] = "lastname";
+      else if (l.includes("telef") || l.includes("phone") || l.includes("cel") || l.includes("numero")) autoMap[col] = "phone";
+      else if (l.includes("email") || l.includes("correo"))       autoMap[col] = "email";
+      else if (l.includes("campus"))                               autoMap[col] = "campus";
+      else if (l.includes("ciclo"))                                autoMap[col] = "ciclo";
       else if (l.includes("año") || l.includes("anio") || l.includes("year")) autoMap[col] = "ano";
-      else if (l.includes("Estatus"))                           autoMap[col] = "status";
-      else if (l.includes("building blocks")) autoMap[col] = "Origen (building blocks)";
-      else if (l.includes("Estado de Lead 2023"))  autoMap[col] = "Estado de Lead 2023";
-      else if (l.includes("Nivel"))  autoMap[col] = "Nivel";
-      else if (l.includes("Programa"))  autoMap[col] = "Programa de interés";
-      else if (l.includes("Escuela de Procedencia"))  autoMap[col] = "Escuela de Procedencia";
+      else if (l.includes("whatsapp"))                             autoMap[col] = "hs_whatsapp_phone";
     }
 
     res.json({ columns, preview, autoMap, total_rows: rows.length });
@@ -171,18 +169,12 @@ router.post("/submit", upload.single("file"), async (req, res) => {
     const sheet = wb.Sheets[wb.SheetNames[0]];
     const rows  = xlsx.utils.sheet_to_json(sheet, { defval: "" });
 
-    const batchName  = req.body.batch_name || req.file.originalname;
+    const batchName   = req.body.batch_name || req.file.originalname;
     const batchResult = await query(
       "INSERT INTO upload_batches (name, filename, total_rows, status, created_by) VALUES (?, ?, ?, 'pending', ?)",
       [batchName, req.file.originalname, rows.length, req.user.email]
     );
     const batchId = batchResult.insertId;
-
-    // Guardar owner_id en el lote
-    if (ownerId) {
-      await query("UPDATE upload_batches SET created_by=? WHERE id=?",
-        [`${req.user.email}|owner:${ownerId}`, batchId]);
-    }
 
     for (const [csvCol, hsProp] of Object.entries(mappings)) {
       await query(
@@ -191,13 +183,13 @@ router.post("/submit", upload.single("file"), async (req, res) => {
       );
     }
 
-    const [phoneCol] = phoneMapping;
-    const firstNameCol  = Object.entries(mappings).find(([, hs]) => hs === "firstname")?.[0];
-    const lastNameCol   = Object.entries(mappings).find(([, hs]) => hs === "lastname")?.[0];
-    const emailCol      = Object.entries(mappings).find(([, hs]) => hs === "email")?.[0];
-    const campusCol     = Object.entries(mappings).find(([, hs]) => hs === "campus")?.[0];
-    const anioCol       = Object.entries(mappings).find(([, hs]) => hs === "ano")?.[0];
-    const cicloCol      = Object.entries(mappings).find(([, hs]) => hs === "ciclo")?.[0];
+    const [phoneCol]   = phoneMapping;
+    const firstNameCol = Object.entries(mappings).find(([, hs]) => hs === "firstname")?.[0];
+    const lastNameCol  = Object.entries(mappings).find(([, hs]) => hs === "lastname")?.[0];
+    const emailCol     = Object.entries(mappings).find(([, hs]) => hs === "email")?.[0];
+    const campusCol    = Object.entries(mappings).find(([, hs]) => hs === "campus")?.[0];
+    const anioCol      = Object.entries(mappings).find(([, hs]) => hs === "ano")?.[0];
+    const cicloCol     = Object.entries(mappings).find(([, hs]) => hs === "ciclo")?.[0];
 
     const knownProps = new Set(["firstname","lastname","phone","mobilephone","hs_whatsapp_phone",
       "email","campus","ano","ciclo"]);
@@ -216,8 +208,7 @@ router.post("/submit", upload.single("file"), async (req, res) => {
       for (const col of extraCols) {
         if (r[col] !== undefined && r[col] !== "") extra[mappings[col]] = String(r[col]);
       }
-      // Guardar owner_id en extra para el push
-      if (ownerId) extra["hubspot_owner_id"] = ownerId;
+      if (ownerId) extra["hubspot_owner_id"] = String(ownerId);
 
       await query(
         `INSERT INTO upload_rows
@@ -247,7 +238,7 @@ router.post("/submit", upload.single("file"), async (req, res) => {
 async function validateBatch(batchId) {
   const hsToken = process.env.HUBSPOT_TOKEN;
   const headers = { Authorization: `Bearer ${hsToken}` };
-  const rows = await query(
+  const rows    = await query(
     "SELECT id, telefono, telefono_norm FROM upload_rows WHERE batch_id=? AND telefono_norm IS NOT NULL",
     [batchId]
   );
@@ -308,9 +299,9 @@ router.get("/batch/:id", async (req, res) => {
 
 // ── POST /api/upload/batch/:id/push ──────────────────────────────────────────
 router.post("/batch/:id/push", async (req, res) => {
-  const hsToken  = process.env.HUBSPOT_TOKEN;
-  const headers  = { Authorization: `Bearer ${hsToken}`, "Content-Type": "application/json" };
-  const batchId  = req.params.id;
+  const hsToken = process.env.HUBSPOT_TOKEN;
+  const headers = { Authorization: `Bearer ${hsToken}`, "Content-Type": "application/json" };
+  const batchId = req.params.id;
   const { force_row_ids = [] } = req.body;
 
   const rows = await query(
@@ -326,18 +317,20 @@ router.post("/batch/:id/push", async (req, res) => {
   for (const row of rows) {
     const phoneNorm = row.telefono_norm || row.telefono;
     const props = {
-      firstname: row.nombre   || undefined,
-      phone:     phoneNorm    || undefined,
-      email:     row.email    || undefined,
-      campus:    row.campus   || undefined,
-      ano:       row.anio     || undefined,
-      ciclo:     row.ciclo    || undefined,
+      firstname: row.nombre  || undefined,
+      phone:     phoneNorm   || undefined,
+      email:     row.email   || undefined,
+      campus:    row.campus  || undefined,
+      ano:       row.anio    || undefined,
+      ciclo:     row.ciclo   || undefined,
     };
 
+    // Mezclar extra_data (contiene propiedades custom + hubspot_owner_id)
     if (row.extra_data) {
       try { Object.assign(props, JSON.parse(row.extra_data)); } catch {}
     }
 
+    // Limpiar valores vacíos/undefined
     Object.keys(props).forEach(k => (props[k] === undefined || props[k] === "") && delete props[k]);
 
     try {
