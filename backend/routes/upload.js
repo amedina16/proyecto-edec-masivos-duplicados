@@ -30,7 +30,7 @@ router.get("/hs-properties", async (req, res) => {
       .filter(p => !p.readOnlyValue && !p.calculated && !excluded.has(p.name) && p.fieldType !== "calculation_equation")
       .map(p => ({ value: p.name, label: p.label, group: p.groupName, type: p.fieldType }))
       .sort((a, b) => {
-        const priority = ["firstname","lastname","phone","mobilephone","hs_whatsapp_phone","email"];
+        const priority = ["firstname","lastname","Número de teléfono","mobilephone","hs_whatsapp_phone","email"];
         const ai = priority.indexOf(a.value), bi = priority.indexOf(b.value);
         if (ai !== -1 && bi !== -1) return ai - bi;
         if (ai !== -1) return -1;
@@ -42,7 +42,7 @@ router.get("/hs-properties", async (req, res) => {
     res.json([
       { value: "firstname",         label: "Nombre",   group: "contactinformation" },
       { value: "lastname",          label: "Apellido",  group: "contactinformation" },
-      { value: "phone",             label: "Teléfono",  group: "contactinformation" },
+      { value: "phone",             label: "Número de teléfono",  group: "contactinformation" },
       { value: "mobilephone",       label: "Móvil",     group: "contactinformation" },
       { value: "hs_whatsapp_phone", label: "WhatsApp",  group: "contactinformation" },
       { value: "email",             label: "Email",     group: "contactinformation" },
