@@ -123,17 +123,51 @@ router.post("/parse", upload.single("file"), (req, res) => {
     );
 
     const autoMap = {};
-    const lower = s => s.toLowerCase().replace(/[\s_\-()]/g, "");
+    const EXACT_MAP = {
+      "nombre":                   "firstname",
+      "apellidos":                "lastname",
+      "apellido":                 "lastname",
+      "correo":                   "email",
+      "email":                    "email",
+      "numerodetelfono":          "phone",
+      "numerodetelefono":         "phone",
+      "nmerodetelfono":           "phone",
+      "telefono":                 "phone",
+      "celular":                  "phone",
+      "phone":                    "phone",
+      "campus":                   "campus",
+      "contactowner":             "hubspot_owner_id",
+      "owner":                    "hubspot_owner_id",
+      "propietario":              "hubspot_owner_id",
+      "ciclo":                    "ciclo",
+      "ao":                       "ano",
+      "ano":                      "ano",
+      "anio":                     "ano",
+      "year":                     "ano",
+      "estatus":                  "estatus",
+      "status":                   "estatus",
+      "origenbuildingblocks":     "origen__building_blocks___original_",
+      "origen":                   "origen__building_blocks___original_",
+      "detalledeorigen":          "detalle_de_origen__atn_esc_",
+      "detalleorigen":            "detalle_de_origen__atn_esc_",
+      "estadodelead2023":         "estado_de_lead_2023_b",
+      "estadolead":               "estado_de_lead_2023_b",
+      "estadodelead":             "estado_de_lead_2023_b",
+      "nivel":                    "nivel",
+      "programadeinteres":        "programa_de_inter_s",
+      "programadeinteres":        "programa_de_inter_s",
+      "programainteres":          "programa_de_inter_s",
+      "escueladeprocedencia":     "escuela_de_procedencia__2022_",
+      "escuelaprocedencia":       "escuela_de_procedencia__2022_",
+      "escuela":                  "escuela_de_procedencia__2022_",
+      "whatsapp":                 "hs_whatsapp_phone",
+    };
+    const normalizeCol = s => s.toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[\s_\-()[\]]/g, "");
     for (const col of columns) {
-      const l = lower(col);
-      if      (l.includes("nombre") && !l.includes("apellido"))  autoMap[col] = "firstname";
-      else if (l.includes("apellido") || l.includes("lastname"))  autoMap[col] = "lastname";
-      else if (l.includes("telef") || l.includes("phone") || l.includes("cel") || l.includes("numero")) autoMap[col] = "phone";
-      else if (l.includes("email") || l.includes("correo"))       autoMap[col] = "email";
-      else if (l.includes("campus"))                               autoMap[col] = "campus";
-      else if (l.includes("ciclo"))                                autoMap[col] = "ciclo";
-      else if (l.includes("año") || l.includes("anio") || l.includes("year")) autoMap[col] = "ano";
-      else if (l.includes("whatsapp"))                             autoMap[col] = "hs_whatsapp_phone";
+      const key = normalizeCol(col);
+      if (EXACT_MAP[key]) autoMap[col] = EXACT_MAP[key];
     }
 
     res.json({ columns, preview, autoMap, total_rows: rows.length });
