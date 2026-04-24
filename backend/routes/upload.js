@@ -208,7 +208,10 @@ router.post("/submit", upload.single("file"), async (req, res) => {
       for (const col of extraCols) {
         if (r[col] !== undefined && r[col] !== "") extra[mappings[col]] = String(r[col]);
       }
-      if (ownerId) extra["hubspot_owner_id"] = String(ownerId);
+      if (ownerId) {
+        extra["hubspot_owner_id"]        = String(ownerId);
+        extra["creado_por_carga_masiva"] = String(ownerId);
+      }
 
       await query(
         `INSERT INTO upload_rows
