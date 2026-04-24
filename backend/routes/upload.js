@@ -383,8 +383,16 @@ router.post("/batch/:id/push", async (req, res) => {
     };
 
     // Mezclar extra_data (contiene propiedades custom + hubspot_owner_id)
+    // MySQL devuelve columnas JSON ya parseadas como objeto, no como string
     if (row.extra_data) {
-      try { Object.assign(props, JSON.parse(row.extra_data)); } catch {}
+      try {
+        const extra = typeof row.extra_data === "string"
+          ? JSON.parse(row.extra_data)
+          : row.extra_data;
+        Object.assign(props, extra);
+      } catch (e) {
+        console.error("[push] Error parseando extra_data:", e.message, row.extra_data);
+      }
     }
 
     // Limpiar valores vacíos/undefined
