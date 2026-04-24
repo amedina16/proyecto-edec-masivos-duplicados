@@ -50,59 +50,32 @@ router.get("/hs-properties", async (req, res) => {
 });
 
 // ── GET /api/upload/hs-owners ─────────────────────────────────────────────────
-// Usa /crm/v3/owners — estos IDs son los válidos para hubspot_owner_id
+// Lee desde la tabla hs_owners en DB (sincronizada con sync_hs_owners.js)
 router.get("/hs-owners", async (req, res) => {
-  const hsToken = process.env.HUBSPOT_TOKEN;
   try {
-    let owners = [];
-    let after  = undefined;
-    do {
-      const params = { limit: 100, ...(after && { after }) };
-      const { data } = await axios.get(`${HS_BASE}/crm/v3/owners`, {
-        headers: { Authorization: `Bearer ${hsToken}` },
-        params,
-      });
-      owners.push(...data.results);
-      after = data.paging?.next?.after;
-    } while (after);
-
-    const list = owners
-      .filter(o => o.email)
-      .map(o => ({
-        id:    String(o.id),
-        email: o.email,
-        name:  [o.firstName, o.lastName].filter(Boolean).join(" ") || o.email,
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-
-    res.json(list);
+    const owners = await query(
+      "SELECT owner_id as id, email, nombre as name FROM hs_owners ORDER BY nombre ASC"
+    );
+    if (owners.length === 0) {
+      return res.status(404).json({ error: "Tabla hs_owners vacía. Ejecuta el script sync_hs_owners.js primero." });
+    }
+    res.json(owners);
   } catch (err) {
-    res.status(500).json({ error: "No se pudo obtener owners de HubSpot: " + err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 
 // ── GET /api/upload/my-owner-id ───────────────────────────────────────────────
-// Busca el owner id del usuario autenticado en /crm/v3/owners por email
+// Busca el owner id del usuario autenticado consultando la tabla hs_owners
 router.get("/my-owner-id", async (req, res) => {
-  const hsToken = process.env.HUBSPOT_TOKEN;
   const myEmail = req.user.email;
   try {
-    let after = undefined;
-    do {
-      const params = { limit: 100, ...(after && { after }) };
-      const { data } = await axios.get(`${HS_BASE}/crm/v3/owners`, {
-        headers: { Authorization: `Bearer ${hsToken}` },
-        params,
-      });
-      const found = data.results.find(o => o.email?.toLowerCase() === myEmail.toLowerCase());
-      if (found) return res.json({
-        id:    String(found.id),
-        email: found.email,
-        name:  [found.firstName, found.lastName].filter(Boolean).join(" ") || found.email,
-      });
-      after = data.paging?.next?.after;
-    } while (after);
-    res.status(404).json({ error: "Usuario no encontrado en HubSpot owners" });
+    const [owner] = await query(
+      "SELECT owner_id, email, nombre FROM hs_owners WHERE LOWER(email) = LOWER(?) LIMIT 1",
+      [myEmail]
+    );
+    if (owner) return res.json({ id: owner.owner_id, email: owner.email, name: owner.nombre });
+    res.status(404).json({ error: "Tu usuario no está en la tabla hs_owners. Ejecuta el script de sincronización." });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -232,36 +205,37 @@ router.post("/submit", upload.single("file"), async (req, res) => {
     // Columna de Contact owner en el CSV (mapeada a hubspot_owner_id)
     const ownerCol = Object.entries(mappings).find(([, hs]) => hs === "hubspot_owner_id")?.[0];
 
-    // Cargar lista de owners de HubSpot para resolver nombre → ID
-    let ownersCache = null;
-    async function getOwnersCache() {
-      if (ownersCache) return ownersCache;
-      try {
-        const { data } = await axios.get(`${HS_BASE}/crm/v3/owners`, {
-          headers: { Authorization: `Bearer ${process.env.HUBSPOT_TOKEN}` },
-          params: { limit: 100 },
-        });
-        ownersCache = data.results;
-      } catch { ownersCache = []; }
-      return ownersCache;
-    }
-
+    // Resolver Contact owner consultando la tabla hs_owners en DB
     async function resolveOwnerValue(rawValue) {
       if (!rawValue) return null;
       const val = String(rawValue).trim();
+
       // Si ya es numérico, es un ID directo
       if (/^\d+$/.test(val)) return val;
-      // Si es email, buscar por email
-      const owners = await getOwnersCache();
-      const byEmail = owners.find(o => o.email?.toLowerCase() === val.toLowerCase());
-      if (byEmail) return String(byEmail.id);
-      // Si es nombre, buscar por nombre completo
-      const byName = owners.find(o => {
-        const full = [o.firstName, o.lastName].filter(Boolean).join(" ").toLowerCase();
-        return full === val.toLowerCase();
-      });
-      if (byName) return String(byName.id);
-      return null; // no encontrado
+
+      // Buscar por email exacto
+      const [byEmail] = await query(
+        "SELECT owner_id FROM hs_owners WHERE email = ? LIMIT 1",
+        [val.toLowerCase()]
+      );
+      if (byEmail) { console.log(`[owners] Resuelto por email: ${val} → ${byEmail.owner_id}`); return byEmail.owner_id; }
+
+      // Buscar por nombre completo exacto (case insensitive)
+      const [byName] = await query(
+        "SELECT owner_id FROM hs_owners WHERE LOWER(nombre) = LOWER(?) LIMIT 1",
+        [val]
+      );
+      if (byName) { console.log(`[owners] Resuelto por nombre: ${val} → ${byName.owner_id}`); return byName.owner_id; }
+
+      // Buscar por nombre parcial (LIKE)
+      const [byPartial] = await query(
+        "SELECT owner_id, nombre FROM hs_owners WHERE LOWER(nombre) LIKE LOWER(?) LIMIT 1",
+        [`%${val}%`]
+      );
+      if (byPartial) { console.log(`[owners] Resuelto por parcial: ${val} → ${byPartial.owner_id} (${byPartial.nombre})`); return byPartial.owner_id; }
+
+      console.warn(`[owners] No resuelto en DB: "${val}"`);
+      return null;
     }
 
     for (let i = 0; i < rows.length; i++) {
