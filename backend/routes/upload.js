@@ -226,8 +226,43 @@ router.post("/submit", upload.single("file"), async (req, res) => {
     const cicloCol     = Object.entries(mappings).find(([, hs]) => hs === "ciclo")?.[0];
 
     const knownProps = new Set(["firstname","lastname","phone","mobilephone","hs_whatsapp_phone",
-      "email","campus","ano","ciclo"]);
+      "email","campus","ano","ciclo","hubspot_owner_id"]);
     const extraCols = Object.keys(mappings).filter(col => !knownProps.has(mappings[col]));
+
+    // Columna de Contact owner en el CSV (mapeada a hubspot_owner_id)
+    const ownerCol = Object.entries(mappings).find(([, hs]) => hs === "hubspot_owner_id")?.[0];
+
+    // Cargar lista de owners de HubSpot para resolver nombre → ID
+    let ownersCache = null;
+    async function getOwnersCache() {
+      if (ownersCache) return ownersCache;
+      try {
+        const { data } = await axios.get(`${HS_BASE}/crm/v3/owners`, {
+          headers: { Authorization: `Bearer ${process.env.HUBSPOT_TOKEN}` },
+          params: { limit: 100 },
+        });
+        ownersCache = data.results;
+      } catch { ownersCache = []; }
+      return ownersCache;
+    }
+
+    async function resolveOwnerValue(rawValue) {
+      if (!rawValue) return null;
+      const val = String(rawValue).trim();
+      // Si ya es numérico, es un ID directo
+      if (/^\d+$/.test(val)) return val;
+      // Si es email, buscar por email
+      const owners = await getOwnersCache();
+      const byEmail = owners.find(o => o.email?.toLowerCase() === val.toLowerCase());
+      if (byEmail) return String(byEmail.id);
+      // Si es nombre, buscar por nombre completo
+      const byName = owners.find(o => {
+        const full = [o.firstName, o.lastName].filter(Boolean).join(" ").toLowerCase();
+        return full === val.toLowerCase();
+      });
+      if (byName) return String(byName.id);
+      return null; // no encontrado
+    }
 
     for (let i = 0; i < rows.length; i++) {
       const r    = rows[i];
@@ -242,9 +277,20 @@ router.post("/submit", upload.single("file"), async (req, res) => {
       for (const col of extraCols) {
         if (r[col] !== undefined && r[col] !== "") extra[mappings[col]] = String(r[col]);
       }
+
+      // Resolver Contact owner del CSV → owner ID de HubSpot
+      let contactOwnerId = null;
+      if (ownerCol && r[ownerCol]) {
+        contactOwnerId = await resolveOwnerValue(r[ownerCol]);
+        if (contactOwnerId) extra["hubspot_owner_id"] = contactOwnerId;
+      }
+
+      // creado_por_carga_masiva = owner ID del usuario que sube (ownerId del selector)
+      // hubspot_owner_id        = owner del contacto (Contact owner del CSV)
       if (ownerId) {
-        extra["hubspot_owner_id"]        = String(ownerId);
         extra["creado_por_carga_masiva"] = String(ownerId);
+        // Solo sobreescribe hubspot_owner_id si no vino del CSV
+        if (!contactOwnerId) extra["hubspot_owner_id"] = String(ownerId);
       }
 
       await query(

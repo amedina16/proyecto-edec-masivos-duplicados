@@ -100,4 +100,32 @@ router.get("/me", async (req, res) => {
   }
 });
 
+
+async function syncHubspotOwnerId(email) {
+  const hsToken = process.env.HUBSPOT_TOKEN;
+  try {
+    let after = undefined;
+    do {
+      const params = { limit: 100, ...(after && { after }) };
+      const { data } = await axios.get("https://api.hubapi.com/crm/v3/owners", {
+        headers: { Authorization: `Bearer ${hsToken}` },
+        params,
+      });
+      const found = data.results.find(o => o.email?.toLowerCase() === email.toLowerCase());
+      if (found) {
+        const { query } = require("../db");
+        await query(
+          "UPDATE users SET hubspot_owner_id=? WHERE email=?",
+          [String(found.id), email]
+        );
+        return String(found.id);
+      }
+      after = data.paging?.next?.after;
+    } while (after);
+  } catch (err) {
+    console.error("syncHubspotOwnerId error:", err.message);
+  }
+  return null;
+}
+
 module.exports = router;
