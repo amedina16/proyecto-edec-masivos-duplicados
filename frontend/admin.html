@@ -616,22 +616,19 @@
     let MY_EMAIL = null;
 
     function init() {
-      const payload = Auth.init(); // lee token, verifica expiración, redirige a login si no hay sesión
-      if (!payload) return;        // Auth.init() ya manejó la redirección
+      const payload = Auth.init();
+      if (!payload) return;
 
-      // Mostrar email y rol
-      const emailEl = document.getElementById("user-email");
-      if (emailEl) emailEl.textContent = Auth.getEmail();
-
-      // Mostrar/ocultar nav de admin
-      const navAdmin = document.getElementById("nav-admin");
-      if (navAdmin) navAdmin.style.display = Auth.can("admin") ? "inline" : "none";
-
-      // Deshabilitar botones según permisos (sin redirigir)
-      if (!Auth.can("merge")) {
-        const btnMerge = document.getElementById("btn-merge");
-        if (btnMerge) { btnMerge.disabled = true; btnMerge.title = "Sin permiso"; }
+      if (payload.role !== "admin") {
+        toast("Sin permiso para acceder al panel de administración", "error");
+        return;
       }
+
+      MY_EMAIL = payload.email;
+
+      loadStats();
+      loadUsers();
+      loadActivity();
     }
 
     function logout() { Auth.logout(); }
