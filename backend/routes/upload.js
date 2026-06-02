@@ -395,6 +395,17 @@ router.post("/batch/:id/push", async (req, res) => {
       }
     }
 
+    // Normalizar campos enum — HubSpot es case-sensitive en las opciones
+    const ENUM_NORMALIZE = {
+      estatus: v => v.charAt(0).toUpperCase() + v.slice(1).toLowerCase(),
+      nivel:   v => v.charAt(0).toUpperCase() + v.slice(1).toLowerCase(),
+    };
+    for (const [field, fn] of Object.entries(ENUM_NORMALIZE)) {
+      if (props[field]) {
+        try { props[field] = fn(props[field]); } catch {}
+      }
+    }
+
     // Limpiar valores vacíos/undefined
     Object.keys(props).forEach(k => (props[k] === undefined || props[k] === "") && delete props[k]);
 
