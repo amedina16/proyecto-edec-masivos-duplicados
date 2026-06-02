@@ -816,18 +816,23 @@
 
     function logout() { Auth.logout(); }
 
-    async function api(method, path, body) {
+    async function api(method, path, body, isFormData = false) {
       const opts = { method, headers: { Authorization: `Bearer ${Auth.getToken()}` } };
-      if (body) { opts.headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(body); }
+
+      if (body && !isFormData) {
+        opts.headers["Content-Type"] = "application/json";
+        opts.body = JSON.stringify(body);
+      } else if (body) {
+        opts.body = body; // FormData — NO agregar Content-Type, el browser lo pone con el boundary
+      }
+
       const res = await fetch(path, opts);
 
       if (res.status === 401 || res.status === 403) {
-        // Solo cerrar sesión si el token está realmente expirado
         try {
           const p = JSON.parse(atob(Auth.getToken().split(".")[1]));
           if (p.exp * 1000 < Date.now()) { Auth.logout(); return; }
         } catch { Auth.logout(); return; }
-        // Token vigente pero sin permiso — mostrar error sin cerrar sesión
         throw new Error(res.status === 403 ? "Sin permiso para esta acción" : "Error de autenticación");
       }
 
@@ -835,7 +840,6 @@
       if (!res.ok) throw new Error(data.error || "Error");
       return data;
     }
-
     // ── Owner selector ────────────────────────────────────────────────────────
     async function loadOwnerSelector() {
       const isAdmin = Auth.can("admin");
