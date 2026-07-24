@@ -341,7 +341,9 @@ async function validateBatch(batchId) {
 
 // ── GET /api/upload/batches ───────────────────────────────────────────────────
 router.get("/batches", async (req, res) => {
-  const batches = await query("SELECT * FROM upload_batches ORDER BY created_at DESC LIMIT 50");
+  const batches = await query(
+    "SELECT * FROM upload_batches ORDER BY created_at DESC LIMIT 200"
+  );
   res.json(batches);
 });
 
@@ -396,13 +398,49 @@ router.post("/batch/:id/push", async (req, res) => {
     }
 
     // Normalizar campos enum — HubSpot es case-sensitive en las opciones
-    const ENUM_NORMALIZE = {
-      estatus: v => v.charAt(0).toUpperCase() + v.slice(1).toLowerCase(),
-      nivel:   v => v.charAt(0).toUpperCase() + v.slice(1).toLowerCase(),
-    };
-    for (const [field, fn] of Object.entries(ENUM_NORMALIZE)) {
+    // 1. Capitalizar campos simples: ACTIVO → Activo
+    const CAPITALIZE_FIELDS = ["estatus", "nivel"];
+    for (const field of CAPITALIZE_FIELDS) {
       if (props[field]) {
-        try { props[field] = fn(props[field]); } catch {}
+        props[field] = props[field].charAt(0).toUpperCase() + props[field].slice(1).toLowerCase();
+      }
+    }
+
+    // 2. Correcciones de typos en campos enum
+    const VALUE_CORRECTIONS = {
+      "origen__building_blocks___original_": {
+        "atencion a empresa":     "Atención a empresas",
+        "atención a empresa":    "Atención a empresas",
+        "atencion a empresas":    "Atención a empresas",
+        "atención a empresas":   "Atención a empresas",
+        "atencion a escuelas":    "Atención a escuelas",
+        "atención a escuelas":   "Atención a escuelas",
+        "sitio web":              "Sitio web",
+        "eventos":                "Eventos",
+        "referido por":           "Referido por",
+        "fachada / piso":         "Fachada / Piso",
+        "prospeccion en campo":   "Prospección en campo",
+        "prospección en campo":   "Prospección en campo",
+        "medios de comunicacion": "Medios de comunicación",
+        "medios de comunicación": "Medios de comunicación",
+        "recuperados":            "Recuperados",
+        "mineria":                "Mineria",
+        "paso automatico":        "Paso automático",
+        "paso automático":        "Paso automático",
+        "bd edec":                "BD EDEC",
+        "uvm":                    "UVM",
+        "uanl":                   "UANL",
+      },
+    };
+    for (const [field, corrections] of Object.entries(VALUE_CORRECTIONS)) {
+      if (props[field]) {
+        const key = props[field].toLowerCase()
+          .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+          .trim();
+        const corrected = Object.entries(corrections).find(([k]) =>
+          k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() === key
+        );
+        if (corrected) props[field] = corrected[1];
       }
     }
 
