@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Historial de cargas — HubSpot Dedup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="/auth-shared.js"></script>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --ink:#0a0a0a;--ink2:#3a3a3a;--ink3:#888;
+    --paper:#f5f3ef;--surf:#fff;--border:#d4d0c8;
+    --accent:#c84b2f;--blue:#1a1a2e;
+    --green:#166534;--green-bg:#f0fdf4;--green-b:#86efac;
+    --red:#991b1b;--red-bg:#fff1f2;--red-b:#fca5a5;
+    --amber:#92400e;--amber-bg:#fffbeb;--amber-b:#fde68a;
+    --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
+  }
+  html,body{height:100%;font-family:var(--sans);color:var(--ink);background:var(--paper);font-size:13px}
+  .shell{display:flex;flex-direction:column;min-height:100vh}
+
+  header{background:var(--blue);color:#fff;padding:0 28px;height:56px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-bottom:3px solid var(--accent)}
+  .logo{font-family:var(--mono);font-size:15px;font-weight:600;display:flex;align-items:center;gap:10px}
+  .logo-dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+  .nav{display:flex;gap:4px}
+  .nav a{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.5);padding:6px 12px;border-radius:2px;text-decoration:none;letter-spacing:.5px;transition:background .15s,color .15s}
+  .nav a:hover,.nav a.active{background:rgba(255,255,255,.1);color:#fff}
+  .btn-logout{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.4);background:none;border:1px solid rgba(255,255,255,.15);border-radius:2px;padding:5px 10px;cursor:pointer}
+  .btn-logout:hover{color:#fff;border-color:rgba(255,255,255,.4)}
+
+  .main{flex:1;padding:28px;max-width:1100px;margin:0 auto;width:100%}
+
+  .page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+  .page-title{font-family:var(--mono);font-size:20px;font-weight:600;letter-spacing:-0.5px}
+  .page-sub{font-size:12px;color:var(--ink3);margin-top:4px}
+
+  /* Stats */
+  .stats{display:flex;gap:12px;margin-bottom:24px}
+  .stat{background:var(--surf);border:1px solid var(--border);border-radius:2px;padding:14px 20px;flex:1}
+  .stat-val{font-family:var(--mono);font-size:24px;font-weight:600;margin-bottom:4px}
+  .stat-lbl{font-size:11px;color:var(--ink3)}
+  .stat.green .stat-val{color:var(--green)}
+  .stat.red   .stat-val{color:var(--red)}
+  .stat.amber .stat-val{color:var(--amber)}
+
+  /* Table */
+  .section{background:var(--surf);border:1px solid var(--border);border-radius:2px}
+  .section-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
+  .section-title{font-family:var(--mono);font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px}
+  .section-title::before{content:'';width:3px;height:16px;background:var(--accent);border-radius:2px}
+
+  table{width:100%;border-collapse:collapse}
+  th{font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--ink3);padding:10px 16px;text-align:left;background:var(--paper);border-bottom:1px solid var(--border)}
+  td{padding:10px 16px;border-bottom:1px solid var(--border);vertical-align:middle;font-size:12px}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:#fafaf8}
+
+  .badge{display:inline-block;font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:2px;letter-spacing:.5px;text-transform:uppercase;border:1px solid}
+  .badge-pushed   {background:var(--green-bg);color:var(--green);border-color:var(--green-b)}
+  .badge-ready    {background:#eff6ff;color:#1e40af;border-color:#bfdbfe}
+  .badge-validating{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-b)}
+  .badge-error    {background:var(--red-bg);color:var(--red);border-color:var(--red-b)}
+  .badge-pending  {background:var(--paper);color:var(--ink3);border-color:var(--border)}
+
+  .btn{font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:1px;text-transform:uppercase;padding:6px 12px;border-radius:2px;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background .15s}
+  .btn-ghost{background:transparent;color:var(--ink2);border:1px solid var(--border)}
+  .btn-ghost:hover{background:var(--paper)}
+  .btn-danger-sm{background:transparent;color:var(--red);border:1px solid var(--red-b);font-size:10px;padding:5px 10px}
+  .btn-danger-sm:hover{background:var(--red-bg)}
+
+  .num{font-family:var(--mono);font-size:11px}
+  .num.green{color:var(--green)}
+  .num.red{color:var(--red)}
+  .num.amber{color:var(--amber)}
+
+  /* Modal de detalle */
+  .overlay{position:fixed;inset:0;background:rgba(10,10,10,.55);display:none;align-items:flex-start;justify-content:center;z-index:200;overflow-y:auto;padding:40px 24px;backdrop-filter:blur(2px)}
+  .overlay.open{display:flex}
+  .modal{background:var(--surf);border:1.5px solid var(--border);border-radius:2px;width:100%;max-width:900px;animation:rise .25s ease both;margin:auto}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  .modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--border)}
+  .modal-title{font-family:var(--mono);font-size:14px;font-weight:600}
+  .modal-close{background:none;border:none;font-size:18px;cursor:pointer;color:var(--ink3);padding:4px 8px;border-radius:2px}
+  .modal-close:hover{background:var(--paper);color:var(--ink)}
+  .modal-body{padding:20px 24px}
+
+  .modal-stats{display:flex;gap:10px;margin-bottom:20px}
+  .modal-stat{background:var(--paper);border:1px solid var(--border);border-radius:2px;padding:10px 16px;flex:1;text-align:center}
+  .modal-stat-val{font-family:var(--mono);font-size:18px;font-weight:600}
+  .modal-stat-lbl{font-size:10px;color:var(--ink3);margin-top:2px}
+  .modal-stat.green .modal-stat-val{color:var(--green)}
+  .modal-stat.red   .modal-stat-val{color:var(--red)}
+  .modal-stat.amber .modal-stat-val{color:var(--amber)}
+
+  /* Filtros del modal */
+  .filter-row{display:flex;gap:8px;margin-bottom:16px}
+  .filter-btn{font-family:var(--mono);font-size:10px;padding:5px 12px;border-radius:2px;border:1px solid var(--border);background:var(--paper);color:var(--ink3);cursor:pointer;transition:all .15s;letter-spacing:.5px}
+  .filter-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+
+  .detail-table{width:100%;border-collapse:collapse;font-size:11px}
+  .detail-table th{font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--ink3);padding:7px 10px;background:var(--paper);border-bottom:1px solid var(--border);position:sticky;top:0}
+  .detail-table td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+  .detail-table tr.clean{background:var(--green-bg)}
+  .detail-table tr.error{background:var(--red-bg)}
+  .detail-table tr.duplicate{background:var(--amber-bg)}
+  .detail-table tr.pushed{background:#eff6ff}
+  .detail-wrap{max-height:420px;overflow-y:auto;border:1px solid var(--border)}
+
+  .error-msg{font-family:var(--mono);font-size:10px;color:var(--red);line-height:1.5;max-width:340px;word-break:break-word}
+  .hs-id{font-family:var(--mono);font-size:10px;color:var(--ink3)}
+
+  /* Pagination */
+  .pagination{display:flex;align-items:center;gap:8px;margin-top:16px;font-family:var(--mono);font-size:11px;color:var(--ink3)}
+  .pag-btn{background:var(--paper);border:1px solid var(--border);border-radius:2px;padding:5px 10px;cursor:pointer;font-family:var(--mono);font-size:11px}
+  .pag-btn:disabled{opacity:.4;cursor:not-allowed}
+
+  .empty{padding:40px;text-align:center;color:var(--ink3);font-family:var(--mono);font-size:12px}
+
+  .toast{position:fixed;bottom:24px;right:24px;font-family:var(--mono);font-size:12px;padding:12px 18px;border-radius:2px;max-width:340px;transform:translateY(60px);opacity:0;transition:transform .3s,opacity .3s;z-index:300}
+  .toast.show{transform:translateY(0);opacity:1}
+  .toast.ok{background:var(--green-bg);border:1px solid var(--green-b);color:var(--green)}
+  .toast.error{background:var(--red-bg);border:1px solid var(--red-b);color:var(--red)}
+</style>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <div class="logo"><div class="logo-dot"></div>HubSpot Dedup</div>
+    <nav class="nav">
+      <a href="/dashboard.html">Duplicados</a>
+      <a href="/upload.html">Carga masiva</a>
+      <a href="/admin.html">Admin</a>
+      <a href="/historial.html" class="active">Historial</a>
+    </nav>
+    <button class="btn-logout" onclick="Auth.logout()">Salir</button>
+  </header>
+
+  <div class="main">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Historial de cargas masivas</div>
+        <div class="page-sub">Registro de todos los lotes enviados a HubSpot</div>
+      </div>
+      <button class="btn btn-ghost" onclick="loadHistory()">⟳ Actualizar</button>
+    </div>
+
+    <!-- Stats globales -->
+    <div class="stats" id="global-stats">
+      <div class="stat"><div class="stat-val" id="gs-total">—</div><div class="stat-lbl">Lotes totales</div></div>
+      <div class="stat green"><div class="stat-val" id="gs-pushed">—</div><div class="stat-lbl">Enviados</div></div>
+      <div class="stat"><div class="stat-val" id="gs-contacts">—</div><div class="stat-lbl">Contactos procesados</div></div>
+      <div class="stat red"><div class="stat-val" id="gs-errors">—</div><div class="stat-lbl">Con errores</div></div>
+    </div>
+
+    <!-- Tabla de lotes -->
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">Lotes</div>
+      </div>
+      <table>
+        <thead><tr>
+          <th>ID</th><th>Nombre del lote</th><th>Subido por</th>
+          <th>Fecha</th><th>Total</th><th>Limpios</th>
+          <th>Duplicados</th><th>Errores</th><th>Estado</th><th>Detalle</th>
+        </tr></thead>
+        <tbody id="batches-tbody">
+          <tr><td colspan="10" class="empty">Cargando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal detalle del lote -->
+<div class="overlay" id="overlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">Detalle del lote</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-stats">
+        <div class="modal-stat"><div class="modal-stat-val" id="ms-total">—</div><div class="modal-stat-lbl">Total</div></div>
+        <div class="modal-stat green"><div class="modal-stat-val" id="ms-clean">—</div><div class="modal-stat-lbl">Limpios</div></div>
+        <div class="modal-stat amber"><div class="modal-stat-val" id="ms-dup">—</div><div class="modal-stat-lbl">Duplicados</div></div>
+        <div class="modal-stat red"><div class="modal-stat-val" id="ms-err">—</div><div class="modal-stat-lbl">Errores</div></div>
+        <div class="modal-stat green"><div class="modal-stat-val" id="ms-pushed">—</div><div class="modal-stat-lbl">Enviados</div></div>
+      </div>
+
+      <!-- Filtros -->
+      <div class="filter-row">
+        <button class="filter-btn active" onclick="filterRows('all', this)">Todos</button>
+        <button class="filter-btn" onclick="filterRows('error', this)">⚠ Errores</button>
+        <button class="filter-btn" onclick="filterRows('pushed', this)">✓ Enviados</button>
+        <button class="filter-btn" onclick="filterRows('duplicate', this)">≈ Duplicados</button>
+        <button class="filter-btn" onclick="filterRows('clean', this)">○ Limpios</button>
+      </div>
+
+      <div class="detail-wrap">
+        <table class="detail-table">
+          <thead><tr>
+            <th>#</th><th>Nombre</th><th>Teléfono</th><th>Email</th>
+            <th>Estado</th><th>HS ID / Duplicado de</th><th>Error</th>
+          </tr></thead>
+          <tbody id="detail-tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="pagination" id="pagination"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  let allRows   = [];
+  let filtered  = [];
+  let page      = 1;
+  const PER_PAGE = 50;
+
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  function init() {
+    const payload = Auth.init();
+    if (!payload) return;
+    if (payload.role !== "admin") {
+      document.body.innerHTML = '<div style="padding:48px;text-align:center;font-family:monospace">Sin permiso para acceder a esta página.</div>';
+      return;
+    }
+    loadHistory();
+  }
+
+  async function api(method, path, body) {
+    const opts = { method, headers: { Authorization: `Bearer ${Auth.getToken()}` } };
+    if (body) { opts.headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(body); }
+    const res  = await fetch(path, opts);
+    if (res.status === 401) { Auth.logout(); return; }
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Error");
+    return data;
+  }
+
+  // ── Cargar historial ──────────────────────────────────────────────────────
+  async function loadHistory() {
+    try {
+      const batches = await api("GET", "/api/upload/batches");
+      renderBatches(batches);
+      renderGlobalStats(batches);
+    } catch (e) {
+      toast(e.message, "error");
+    }
+  }
+
+  function renderGlobalStats(batches) {
+    const total    = batches.length;
+    const pushed   = batches.filter(b => b.status === "pushed").length;
+    const contacts = batches.reduce((s, b) => s + (b.total_rows || 0), 0);
+    const errors   = batches.filter(b => b.status === "error").length;
+    document.getElementById("gs-total").textContent    = total;
+    document.getElementById("gs-pushed").textContent   = pushed;
+    document.getElementById("gs-contacts").textContent = contacts.toLocaleString();
+    document.getElementById("gs-errors").textContent   = errors;
+  }
+
+  function renderBatches(batches) {
+    const tbody = document.getElementById("batches-tbody");
+    if (!batches.length) {
+      tbody.innerHTML = `<tr><td colspan="10" class="empty">Sin lotes registrados</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = batches.map(b => {
+      const errRows = (b.total_rows || 0) - (b.clean_rows || 0) - (b.duplicate_rows || 0);
+      const fecha   = b.created_at ? new Date(b.created_at).toLocaleString("es-MX", { dateStyle:"short", timeStyle:"short" }) : "—";
+      return `<tr>
+        <td class="num">${b.id}</td>
+        <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${b.name}">${b.name}</td>
+        <td style="font-size:11px;color:var(--ink3)">${b.created_by || "—"}</td>
+        <td class="num">${fecha}</td>
+        <td class="num">${b.total_rows || 0}</td>
+        <td class="num green">${b.clean_rows || 0}</td>
+        <td class="num amber">${b.duplicate_rows || 0}</td>
+        <td class="num ${errRows > 0 ? "red" : ""}">${errRows > 0 ? errRows : 0}</td>
+        <td><span class="badge badge-${b.status}">${statusLabel(b.status)}</span></td>
+        <td><button class="btn btn-ghost" onclick="openDetail(${b.id}, '${b.name.replace(/'/g,"\\'")}', ${JSON.stringify(b)})">Ver →</button></td>
+      </tr>`;
+    }).join("");
+  }
+
+  function statusLabel(s) {
+    return { pushed:"Enviado", ready:"Listo", validating:"Validando", pending:"Pendiente", error:"Error" }[s] || s;
+  }
+
+  // ── Modal detalle ─────────────────────────────────────────────────────────
+  async function openDetail(batchId, batchName, batch) {
+    document.getElementById("modal-title").textContent = `Lote #${batchId} — ${batchName}`;
+    document.getElementById("overlay").classList.add("open");
+
+    // Stats del lote
+    const errCount = (batch.total_rows || 0) - (batch.clean_rows || 0) - (batch.duplicate_rows || 0);
+    document.getElementById("ms-total").textContent  = batch.total_rows  || 0;
+    document.getElementById("ms-clean").textContent  = batch.clean_rows  || 0;
+    document.getElementById("ms-dup").textContent    = batch.duplicate_rows || 0;
+    document.getElementById("ms-err").textContent    = Math.max(errCount, 0);
+    document.getElementById("ms-pushed").textContent = "—";
+
+    document.getElementById("detail-tbody").innerHTML = `<tr><td colspan="7" class="empty">Cargando filas...</td></tr>`;
+    document.getElementById("pagination").innerHTML   = "";
+
+    try {
+      const data = await api("GET", `/api/upload/batch/${batchId}`);
+      allRows  = data.rows || [];
+      filtered = allRows;
+
+      // Contar pushed
+      const pushedCount = allRows.filter(r => r.status === "pushed").length;
+      document.getElementById("ms-pushed").textContent = pushedCount;
+
+      page = 1;
+      renderDetailTable();
+    } catch (e) {
+      document.getElementById("detail-tbody").innerHTML =
+        `<tr><td colspan="7" class="empty" style="color:var(--red)">${e.message}</td></tr>`;
+    }
+  }
+
+  function filterRows(status, btn) {
+    document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    filtered = status === "all" ? allRows : allRows.filter(r => r.status === status);
+    page = 1;
+    renderDetailTable();
+  }
+
+  function renderDetailTable() {
+    const tbody  = document.getElementById("detail-tbody");
+    const pag    = document.getElementById("pagination");
+    const total  = filtered.length;
+    const pages  = Math.ceil(total / PER_PAGE);
+    const slice  = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+    if (!slice.length) {
+      tbody.innerHTML = `<tr><td colspan="7" class="empty">Sin registros</td></tr>`;
+      pag.innerHTML   = "";
+      return;
+    }
+
+    tbody.innerHTML = slice.map(r => {
+      // Parsear error_msg para mostrar solo el mensaje legible
+      let errorDisplay = "—";
+      if (r.error_msg) {
+        try {
+          const parsed = JSON.parse(r.error_msg.match(/\[.*\]/s)?.[0] || "[]");
+          errorDisplay = parsed.map(e =>
+            `<div style="margin-bottom:4px">
+              <span style="font-weight:600">${e.name}:</span> ${e.localizedErrorMessage || e.message}
+            </div>`
+          ).join("") || r.error_msg.slice(0, 200);
+        } catch {
+          errorDisplay = r.error_msg.slice(0, 200);
+        }
+      }
+
+      const dupInfo = r.duplicate_of_hs
+        ? `<a href="https://app.hubspot.com/contacts/6363127/contact/${r.duplicate_of_hs}" target="_blank" class="hs-id">${r.duplicate_of_hs} ↗</a>`
+        : r.hs_contact_id
+        ? `<a href="https://app.hubspot.com/contacts/6363127/contact/${r.hs_contact_id}" target="_blank" class="hs-id">${r.hs_contact_id} ↗</a>`
+        : "—";
+
+      return `<tr class="${r.status}">
+        <td class="num">${r.row_index}</td>
+        <td>${r.nombre || "—"}</td>
+        <td class="num">${r.telefono || "—"}</td>
+        <td style="font-size:10px">${r.email || "—"}</td>
+        <td><span class="badge badge-${r.status}">${r.status}</span></td>
+        <td>${dupInfo}</td>
+        <td class="error-msg">${errorDisplay}</td>
+      </tr>`;
+    }).join("");
+
+    // Paginación
+    pag.innerHTML = `
+      <button class="pag-btn" onclick="changePage(${page - 1})" ${page <= 1 ? "disabled" : ""}>← Anterior</button>
+      <span>Página ${page} de ${pages} · ${total} registros</span>
+      <button class="pag-btn" onclick="changePage(${page + 1})" ${page >= pages ? "disabled" : ""}>Siguiente →</button>
+    `;
+  }
+
+  function changePage(p) {
+    page = p;
+    renderDetailTable();
+    document.querySelector(".detail-wrap").scrollTop = 0;
+  }
+
+  function closeModal(e) {
+    if (!e || e.target === document.getElementById("overlay")) {
+      document.getElementById("overlay").classList.remove("open");
+      allRows = []; filtered = [];
+    }
+  }
+
+  // ── Toast ─────────────────────────────────────────────────────────────────
+  let toastTimer;
+  function toast(msg, type) {
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.className = `toast ${type} show`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove("show"), 4000);
+  }
+
+  init();
+</script>
+</body>
+</html>
