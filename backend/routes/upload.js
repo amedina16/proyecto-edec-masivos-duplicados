@@ -361,14 +361,11 @@ router.post("/batch/:id/push", async (req, res) => {
   const hsToken = process.env.HUBSPOT_TOKEN;
   const headers = { Authorization: `Bearer ${hsToken}`, "Content-Type": "application/json" };
   const batchId = req.params.id;
-  const { force_row_ids = [] } = req.body;
 
+  // Solo se envían contactos limpios — los duplicados nunca se fuerzan
   const rows = await query(
-    `SELECT * FROM upload_rows WHERE batch_id=? AND (
-       status='clean' OR
-       (status='duplicate' AND id IN (${force_row_ids.length ? force_row_ids.map(() => "?").join(",") : "NULL"}))
-     )`,
-    [batchId, ...force_row_ids]
+    "SELECT * FROM upload_rows WHERE batch_id=? AND status='clean'",
+    [batchId]
   );
 
   let pushed = 0, failed = 0;
